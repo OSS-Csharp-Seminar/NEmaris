@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NEmaris.API/NEmaris.API.csproj" />
+    <Project Path="src/NEmaris.Application/NEmaris.Application.csproj" />
+    <Project Path="src/NEmaris.Domain/NEmaris.Domain.csproj" />
+    <Project Path="src/NEmaris.Infrastructure/NEmaris.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NEmaris.Tests/NEmaris.Tests.csproj" />
+  </Folder>
+</Solution>

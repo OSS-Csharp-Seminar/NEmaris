@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "R18JYKiQUOo=",
+  "success": true,
+  "projectFilePath": "/Users/dujespajic/Desktop/NEmaris/backend/src/NEmaris.API/NEmaris.API.csproj",
+  "expectedPackageFiles": [
+    "/Users/dujespajic/.nuget/packages/microsoft.aspnetcore.openapi/10.0.3/microsoft.aspnetcore.openapi.10.0.3.nupkg.sha512",
+    "/Users/dujespajic/.nuget/packages/microsoft.openapi/2.0.0/microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
