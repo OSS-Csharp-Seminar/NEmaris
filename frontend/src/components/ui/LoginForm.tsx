@@ -8,9 +8,7 @@ export default function LoginForm() {
         placeholder="Username"
       />
       <input className="border border-border bg-input" placeholder="Password" />
-
-      {/* napravi basic home page, doslovno samo div i  da je npr zute boje :D i da buton vodi tamo, zasad ce vodit bez logina dok toma nesto ne izdrlja :D */}
-      <NavButton />
+      <NavButton text="di ide" navTo="ko ide" />
     </div>
   );
 }
