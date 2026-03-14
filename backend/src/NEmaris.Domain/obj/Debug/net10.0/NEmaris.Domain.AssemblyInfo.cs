@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NEmaris.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+054715c0b02740d632cc5f97aebe885147fdc52c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a3761858b8e171386893262e6d6196d8e148b846")]
 [assembly: System.Reflection.AssemblyProductAttribute("NEmaris.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NEmaris.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
