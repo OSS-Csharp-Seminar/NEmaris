@@ -1,14 +1,25 @@
 import NavButton from "./NavButton";
+
 export default function LoginForm() {
   return (
-    <div className="bg-blue-100 p-4 w-[50%] justify-center items-center  flex flex-col">
-      <p> chatgptiraj neke gluposti da pisu iznad</p>
+    <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg flex flex-col items-center pt-24">
+      <h2 className="mb-2 text-2xl font-bold text-gray-800">Welcome</h2>
+      <p className="mb-6 text-sm text-gray-500">
+        Sign in to continue to your account
+      </p>
+
       <input
-        className="border border-border bg-input my-4"
+        className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
         placeholder="Username"
       />
-      <input className="border border-border bg-input" placeholder="Password" />
-      <NavButton text="di ide" navTo="ko ide" />
+
+      <input
+        className="mb-6 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+        placeholder="Password"
+        type="password"
+      />
+
+      <NavButton text="Login" navTo="/home" />
     </div>
   );
 }
