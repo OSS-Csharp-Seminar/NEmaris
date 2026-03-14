@@ -8,6 +8,8 @@ The backend provides the core business logic and database management. The AI lay
 
 The project is designed as a modular system composed of several services that communicate through APIs.
 
+For local development setup see [DOCKER.md](./DOCKER.md).
+
 ---
 
 
