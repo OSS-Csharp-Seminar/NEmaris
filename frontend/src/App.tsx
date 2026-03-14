@@ -1,9 +1,13 @@
+import { Outlet } from "react-router-dom";
+import Header from "./components/layout/Header";
+
 function App() {
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <h1 className="text-4xl font-bold text-blue-600">
-        React + Tailwind radi 🎉
-      </h1>
+    <div className="h-screen flex flex-col overflow-hidden">
+      <Header />
+      <main className="flex-1 min-h-0 overflow-hidden p-4">
+        <Outlet />
+      </main>
     </div>
   );
 }
