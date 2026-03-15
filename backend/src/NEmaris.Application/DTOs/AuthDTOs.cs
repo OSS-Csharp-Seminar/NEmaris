@@ -5,7 +5,7 @@ public record RegisterRequestDto(
     string LastName,
     string Email,
     string Password,
-    string? Phone
+    string? PhoneNumber
 );
 
 public record LoginRequestDto(

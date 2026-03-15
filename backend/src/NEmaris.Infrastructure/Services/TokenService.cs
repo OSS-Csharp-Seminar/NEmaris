@@ -28,12 +28,12 @@ public class TokenService : ITokenService
 
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub,   user.Id),
+            new(JwtRegisteredClaimNames.Sub, user.Id),
             new(JwtRegisteredClaimNames.Email, user.Email!),
-            new(JwtRegisteredClaimNames.Jti,   Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new("firstName", user.FirstName),
             new("lastName",  user.LastName),
-            new("role",      user.Role.ToString())
+            new(ClaimTypes.Role, user.Role.ToString())
         };
 
         var token = new JwtSecurityToken(

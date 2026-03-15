@@ -7,7 +7,6 @@ public class ApplicationUser : IdentityUser
 {
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public string? Phone { get; set; }
     public UserRole Role { get; set; }
     public UserStatus Status { get; set; }
     public DateTime? LastLoginAt { get; set; }

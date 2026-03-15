@@ -29,7 +29,7 @@ public class AuthService : IAuthService
             Email = request.Email,
             FirstName = request.FirstName,
             LastName = request.LastName,
-            Phone = request.Phone,
+            PhoneNumber = request.PhoneNumber,
             Role = UserRole.Guest,
             Status = UserStatus.Active
         };

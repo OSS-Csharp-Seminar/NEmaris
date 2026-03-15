@@ -18,7 +18,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(u => u.FirstName).HasMaxLength(100).IsRequired();
             entity.Property(u => u.LastName).HasMaxLength(100).IsRequired();
-            entity.Property(u => u.Phone).HasMaxLength(30);
             entity.Property(u => u.Role).HasConversion<int>();
             entity.Property(u => u.Status).HasConversion<int>();
         });

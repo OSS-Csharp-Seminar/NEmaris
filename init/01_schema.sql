@@ -26,7 +26,6 @@ CREATE TABLE AspNetUsers (
     -- Domain extensions (mapped to your ApplicationUser model)
     FirstName               VARCHAR(100)    NOT NULL,
     LastName                VARCHAR(100)    NOT NULL,
-    Phone                   VARCHAR(30)     NULL,
     Role                    INT             NOT NULL,
     Status                  INT             NOT NULL,
     LastLoginAt             DATETIME(6)     NULL,
@@ -129,6 +128,10 @@ CREATE TABLE AspNetUserTokens (
         FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id)
         ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_AspNetUserLogins_UserId ON AspNetUserLogins(UserId);
+CREATE INDEX idx_AspNetUserClaims_UserId ON AspNetUserClaims(UserId);
+CREATE INDEX idx_AspNetRoleClaims_RoleId ON AspNetRoleClaims(RoleId);
 
 
 -- ============================================================
@@ -350,8 +353,7 @@ BEGIN
             (SELECT COALESCE(SUM(line_total), 0.00) FROM order_items WHERE order_id = NEW.order_id)
             - discount_amount,
             0.00
-        ),
-        updated_at   = CURRENT_TIMESTAMP(6)
+        )
     WHERE id = NEW.order_id;
 END$$
 
@@ -371,8 +373,7 @@ BEGIN
             (SELECT COALESCE(SUM(line_total), 0.00) FROM order_items WHERE order_id = NEW.order_id)
             - discount_amount,
             0.00
-        ),
-        updated_at   = CURRENT_TIMESTAMP(6)
+        )
     WHERE id = NEW.order_id;
 END$$
 
@@ -392,8 +393,7 @@ BEGIN
             (SELECT COALESCE(SUM(line_total), 0.00) FROM order_items WHERE order_id = OLD.order_id)
             - discount_amount,
             0.00
-        ),
-        updated_at   = CURRENT_TIMESTAMP(6)
+        )
     WHERE id = OLD.order_id;
 END$$
 
