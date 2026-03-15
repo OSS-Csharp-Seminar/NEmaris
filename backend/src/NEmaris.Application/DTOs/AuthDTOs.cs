@@ -1,4 +1,4 @@
-﻿namespace NEmaris.Application.Auth.DTOs;
+﻿namespace NEmaris.Application.DTOs;
 
 public record RegisterRequestDto(
     string FirstName,

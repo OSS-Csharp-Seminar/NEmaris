@@ -1,6 +1,6 @@
-﻿using NEmaris.Application.Auth.DTOs;
+﻿using NEmaris.Application.DTOs;
 
-namespace NEmaris.Application.Auth.Interfaces;
+namespace NEmaris.Application.Interfaces;
 
 public interface IAuthService
 {

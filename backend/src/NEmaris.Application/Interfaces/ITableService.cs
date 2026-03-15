@@ -1,6 +1,6 @@
-using NEmaris.Application.DTO_s;
+using NEmaris.Application.DTOs;
 
-namespace NEmaris.Application.Interace_s;
+namespace NEmaris.Application.Interfaces;
 
 public interface ITableService
 {

@@ -4,7 +4,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
-using NEmaris.Application.Auth.Interfaces;
+using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
 
 namespace NEmaris.Infrastructure.Services;

@@ -1,6 +1,6 @@
 using NEmaris.Domain.Enums;
 
-namespace NEmaris.Application.DTO_s;
+namespace NEmaris.Application.DTOs;
 
 public class TableDto
 {

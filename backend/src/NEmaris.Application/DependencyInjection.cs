@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using NEmaris.Application.Auth.Interfaces;
-using NEmaris.Application.Auth.Services;
-using NEmaris.Application.Interace_s;
-using NEmaris.Application.Service_s;
+using NEmaris.Application.Interfaces;
+using NEmaris.Application.Services;
 
 namespace NEmaris.Application;
 

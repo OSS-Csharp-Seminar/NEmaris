@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using NEmaris.Application.Auth.DTOs;
-using NEmaris.Application.Auth.Interfaces;
+using NEmaris.Application.DTOs;
+using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
 using NEmaris.Domain.Enums;
 
-namespace NEmaris.Application.Auth.Services;
+namespace NEmaris.Application.Services;
 
 public class AuthService : IAuthService
 {

@@ -1,9 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using NEmaris.Domain.Enums;
 
-namespace NEmaris.Application.DTO_s;
+namespace NEmaris.Application.DTOs;
 
-public class UpdateTableDto
+public class CreateTableDto
 {
     [Required]
     [MaxLength(20)]

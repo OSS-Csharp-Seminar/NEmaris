@@ -1,6 +1,6 @@
 using NEmaris.Domain.Entities;
 
-namespace NEmaris.Application.Interfaces_s;
+namespace NEmaris.Application.Interfaces;
 
 public interface ITableRepository
 {

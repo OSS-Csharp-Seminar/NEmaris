@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using NEmaris.Application.DTO_s;
-using NEmaris.Application.Interace_s;
+using NEmaris.Application.DTOs;
+using NEmaris.Application.Interfaces;
 
 namespace NEmaris.API.Controllers;
 

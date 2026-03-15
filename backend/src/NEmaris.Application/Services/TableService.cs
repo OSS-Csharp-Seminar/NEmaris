@@ -1,9 +1,8 @@
-using NEmaris.Application.DTO_s;
-using NEmaris.Application.Interace_s;
-using NEmaris.Application.Interfaces_s;
+using NEmaris.Application.DTOs;
+using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
 
-namespace NEmaris.Application.Service_s;
+namespace NEmaris.Application.Services;
 
 public class TableService : ITableService
 {

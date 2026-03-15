@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
-using NEmaris.Application.Auth.DTOs;
-using NEmaris.Application.Auth.Interfaces;
+using NEmaris.Application.DTOs;
+using NEmaris.Application.Interfaces;
 
 namespace NEmaris.API.Controllers;
 

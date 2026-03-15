@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using NEmaris.Application.Interfaces_s;
+using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
 using NEmaris.Infrastructure.Persistence;
 

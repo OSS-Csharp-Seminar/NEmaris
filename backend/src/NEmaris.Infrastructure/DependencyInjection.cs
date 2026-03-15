@@ -2,8 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using NEmaris.Application.Auth.Interfaces;
-using NEmaris.Application.Interfaces_s;
+using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
 using NEmaris.Infrastructure.Persistence;
 using NEmaris.Infrastructure.Repositories;

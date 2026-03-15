@@ -8,4 +8,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\NEmaris.Domain\NEmaris.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Auth\" />
+  </ItemGroup>
 </Project>
