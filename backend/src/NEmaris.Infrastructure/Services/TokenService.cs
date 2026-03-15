@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using NEmaris.Application.Auth.Interfaces;
 using NEmaris.Domain.Entities;
@@ -11,16 +12,19 @@ namespace NEmaris.Infrastructure.Services;
 public class TokenService : ITokenService
 {
     private readonly IConfiguration _config;
+    private readonly IHostEnvironment _environment;
 
-    public TokenService(IConfiguration config)
+    public TokenService(IConfiguration config, IHostEnvironment environment)
     {
         _config = config;
+        _environment = environment;
     }
 
     public string GenerateToken(ApplicationUser user)
     {
         var jwtSettings = _config.GetSection("Jwt");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
+        var keyValue = ResolveJwtKey();
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyValue));
 
         var claims = new List<Claim>
         {
@@ -41,5 +45,23 @@ public class TokenService : ITokenService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private string ResolveJwtKey()
+    {
+        const string developmentFallbackKey = "NEmaris-Development-JWT-Key-AtLeast-32Chars-2026";
+
+        var configuredKey = _config["Jwt:Key"];
+        var jwtKey = string.IsNullOrWhiteSpace(configuredKey) && _environment.IsDevelopment()
+            ? developmentFallbackKey
+            : configuredKey;
+
+        if (string.IsNullOrWhiteSpace(jwtKey))
+            throw new InvalidOperationException("JWT key is missing. Set Jwt:Key in configuration or Jwt__Key environment variable.");
+
+        if (jwtKey.Length < 32)
+            throw new InvalidOperationException("JWT key is too short. Use at least 32 characters.");
+
+        return jwtKey;
     }
 }

@@ -5,14 +5,14 @@ info:
 
 http:
   method: POST
-  url: http://localhost:5000/api/auth/register
+  url: http://localhost:5199/api/auth/register
   body:
     type: json
     data: |-
       {
         "firstName": "John",
         "lastName": "Doe",
-        "email": "john@example.com",
+        "email": "jajadoe@example.com",
         "password": "Password1",
         "phone": null
       }

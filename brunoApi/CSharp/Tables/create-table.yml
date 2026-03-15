@@ -1,17 +1,19 @@
 info:
-  name: login
+  name: create-table
   type: http
-  seq: 3
+  seq: 1
 
 http:
   method: POST
-  url: http://localhost:5199/api/auth/login
+  url: http://localhost:5199/api/tables
   body:
     type: json
     data: |-
       {
-        "email": "jajadoe@example.com",
-        "password": "Password1"
+        "tableNumber": "A-01",
+        "capacity": 4,
+        "zone": "Main hall",
+        "status": 0
       }
   auth: inherit
 
