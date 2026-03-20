@@ -4,6 +4,8 @@ namespace NEmaris.Application.Interfaces;
 
 public interface IAuthService
 {
-    Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request);
+    Task<RegisterResponseDto> RegisterAsync(RegisterRequestDto request);
     Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
+    Task<AuthResponseDto> RefreshAsync(RefreshRequestDto request);
+    Task RevokeAsync(RevokeRequestDto request);
 }

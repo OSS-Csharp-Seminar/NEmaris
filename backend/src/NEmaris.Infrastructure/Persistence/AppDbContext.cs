@@ -10,6 +10,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<RestaurantTables> Tables => Set<RestaurantTables>();
 
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -36,6 +38,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(t => t.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
             entity.HasIndex(t => t.TableNumber).IsUnique();
+        });
+
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshTokens");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Token).HasMaxLength(512).IsRequired();
+            entity.HasIndex(r => r.Token).IsUnique();
+            entity.HasOne(r => r.User)
+                  .WithMany(u => u.RefreshTokens)
+                  .HasForeignKey(r => r.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

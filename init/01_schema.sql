@@ -433,3 +433,20 @@ CREATE INDEX idx_order_items_menu     ON order_items(menu_item_id);
 
 -- payments timeline
 CREATE INDEX idx_payments_paid_at     ON payments(paid_at);
+
+CREATE TABLE RefreshTokens (
+    Id          BIGINT          NOT NULL AUTO_INCREMENT,
+    UserId      VARCHAR(255)    NOT NULL,
+    Token       VARCHAR(512)    NOT NULL,
+    ExpiresAt   DATETIME(6)     NOT NULL,
+    RevokedAt   DATETIME(6)     NULL,
+    CreatedAt   DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+
+    CONSTRAINT pk_RefreshTokens PRIMARY KEY (Id),
+    CONSTRAINT uq_RefreshTokens_Token UNIQUE (Token),
+    CONSTRAINT fk_RefreshTokens_User
+        FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_refresh_tokens_user ON RefreshTokens(UserId);

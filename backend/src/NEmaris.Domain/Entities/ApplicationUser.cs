@@ -14,4 +14,6 @@ public class ApplicationUser : IdentityUser
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public string FullName => $"{FirstName} {LastName}";
+
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
 }

@@ -17,7 +17,7 @@ public class AuthService : IAuthService
         _tokenService = tokenService;
     }
 
-    public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
+    public async Task<RegisterResponseDto> RegisterAsync(RegisterRequestDto request)
     {
         var existing = await _userManager.FindByEmailAsync(request.Email);
         if (existing is not null)
@@ -41,9 +41,7 @@ public class AuthService : IAuthService
             throw new InvalidOperationException($"Registration failed: {errors}");
         }
 
-        var token = _tokenService.GenerateToken(user);
-
-        return new AuthResponseDto(token, user.Email!, user.FirstName, user.LastName, user.Role.ToString());
+        return new RegisterResponseDto("Account created successfully.");
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request)
@@ -57,15 +55,42 @@ public class AuthService : IAuthService
         if (user.Status == UserStatus.Inactive)
             throw new UnauthorizedAccessException("This account is inactive.");
 
-        var validPassword = await _userManager.CheckPasswordAsync(user, request.Password);
-        if (!validPassword)
+        if (!await _userManager.CheckPasswordAsync(user, request.Password))
             throw new UnauthorizedAccessException("Invalid email or password.");
 
         user.LastLoginAt = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
 
-        var token = _tokenService.GenerateToken(user);
+        var accessToken = _tokenService.GenerateAccessToken(user);
+        var refreshToken = await _tokenService.GenerateRefreshTokenAsync(user);
 
-        return new AuthResponseDto(token, user.Email!, user.FirstName, user.LastName, user.Role.ToString());
+        return new AuthResponseDto(
+            accessToken,
+            refreshToken.Token
+        );
+    }
+
+    public async Task<AuthResponseDto> RefreshAsync(RefreshRequestDto request)
+    {
+        var (accessToken, newRefresh) = await _tokenService.RefreshAsync(request.RefreshToken);
+
+        var user = await _userManager.FindByIdAsync(newRefresh.UserId)
+            ?? throw new UnauthorizedAccessException("User not found.");
+
+        return new AuthResponseDto(
+            accessToken,
+            newRefresh.Token
+        );
+    }
+
+    public async Task RevokeAsync(RevokeRequestDto request)
+        => await _tokenService.RevokeAsync(request.RefreshToken);
+
+    private async Task<RegisterResponseDto> BuildResponseAsync(ApplicationUser user)
+    {
+        var accessToken = _tokenService.GenerateAccessToken(user);
+        var refreshToken = await _tokenService.GenerateRefreshTokenAsync(user);
+
+        return new RegisterResponseDto("Account created successfully.");
     }
 }
