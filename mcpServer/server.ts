@@ -4,11 +4,12 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { allTools } from "./src/tools/index.js";
 
 const server = new Server(
   {
-    name: "ollama-server",
-    version: "1.0.0",
+    name: "nemaris-mcp-server",
+    version: "1.1.0",
   },
   {
     capabilities: {
@@ -19,70 +20,23 @@ const server = new Server(
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools: [
-      {
-        name: "generate",
-        description: "Generate text using Ollama",
-        inputSchema: {
-          type: "object",
-          properties: {
-            model: { type: "string" },
-            prompt: { type: "string" },
-          },
-          required: ["model", "prompt"],
-        },
-      },
-    ],
+    tools: allTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+    })),
   };
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  if (req.params.name === "generate") {
-    const { model, prompt } = req.params.arguments as {
-      model: string;
-      prompt: string;
-    };
+  const tool = allTools.find((item) => item.name === req.params.name);
+  if (!tool) throw new Error(`Unknown tool: ${req.params.name}`);
 
-    const res = await fetch("http://localhost:11434/api/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Ollama error ${res.status}: ${text}`);
-    }
-
-    const data = (await res.json()) as { response?: string };
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: data.response ?? "No response from Ollama",
-        },
-      ],
-    };
-  }
-
-  throw new Error("Unknown tool");
+  return tool.run(req.params.arguments ?? {});
 });
 
 async function main() {
   console.error("MCP server started");
-
-  //maknit kasnije, ovo je samo da vidimo jel radi server
-  setInterval(() => {
-    const now = new Date().toLocaleTimeString();
-    console.error("Time:", now);
-  }, 5000);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
