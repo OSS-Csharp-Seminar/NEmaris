@@ -4,6 +4,9 @@ import App from "../App";
 import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
 import HomePage from "../pages/HomePage";
+import RegisterPage from "../pages/RegisterPage";
+import ProtectedRoute from "../components/guards/ProtectedRoute";
+import AdminRoute from "../components/guards/AdminRoute";
 
 const router = createBrowserRouter([
   {
@@ -18,9 +21,25 @@ const router = createBrowserRouter([
         path: "login",
         element: <LoginPage />,
       },
+      // --- authenticated routes ---
       {
-        path: "home",
-        element: <HomePage />,
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "home",
+            element: <HomePage />,
+          },
+        ],
+      },
+      // --- admin-only routes ---
+      {
+        element: <AdminRoute />,
+        children: [
+          {
+            path: "register",
+            element: <RegisterPage />,
+          },
+        ],
       },
     ],
   },

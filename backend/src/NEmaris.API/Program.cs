@@ -1,8 +1,12 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using NEmaris.Application;
+using NEmaris.Domain.Entities;
+using NEmaris.Domain.Enums;
 using NEmaris.Infrastructure;
+using NEmaris.Infrastructure.Persistence;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,8 +40,13 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddCors();
 
 var app = builder.Build();
+app.UseCors(policy => policy
+    .WithOrigins("http://localhost:3000") 
+    .AllowAnyHeader()
+    .AllowAnyMethod());
 
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
@@ -45,6 +54,41 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+// Seed admin user
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // Make sure tables exist
+    await db.Database.EnsureCreatedAsync();
+
+    if (await userManager.FindByEmailAsync("admin@nemaris.com") is null)
+    {
+        var admin = new ApplicationUser
+        {
+            UserName = "admin@nemaris.com",
+            Email = "admin@nemaris.com",
+            FirstName = "Admin",
+            LastName = "User",
+            Role = UserRole.Admin,
+            Status = UserStatus.Active,
+            EmailConfirmed = true
+        };
+
+        var result = await userManager.CreateAsync(admin, "Admin123!");
+
+        if (result.Succeeded)
+            Console.WriteLine("✅ Admin user seeded successfully");
+        else
+            Console.WriteLine($"❌ Admin seeding failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+    }
+    else
+    {
+        Console.WriteLine("ℹ️ Admin user already exists");
+    }
+}
+
 app.Run();
 
 static string ResolveJwtKey(IConfiguration configuration, IHostEnvironment environment)
