@@ -1,0 +1,30 @@
+info:
+  name: create-reservation
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:5199/api/reservations
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Ivan",
+        "lastName": "Horvat",
+        "phone": "+38591111222",
+        "email": "ivan.horvat@example.com",
+        "notes": "Voli stol uz prozor",
+        "tableId": 1,
+        "startTime": "2026-03-25T18:00:00Z",
+        "endTime": "2026-03-25T20:00:00Z",
+        "partySize": 4,
+        "specialRequest": "Dječja stolica"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

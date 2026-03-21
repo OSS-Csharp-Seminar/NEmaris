@@ -193,16 +193,33 @@ CREATE TABLE restaurant_tables (
 
 
 -- ============================================================
+-- TABLE: guests
+-- ============================================================
+CREATE TABLE guests (
+    id              BIGINT          NOT NULL AUTO_INCREMENT,
+    first_name      VARCHAR(100)    NOT NULL,
+    last_name       VARCHAR(100)    NOT NULL,
+    phone           VARCHAR(30)     NOT NULL,
+    email           VARCHAR(255)    NULL,
+    notes           TEXT            NULL,
+    created_at      DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at      DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+
+    CONSTRAINT pk_guests        PRIMARY KEY (id),
+    CONSTRAINT idx_guests_phone UNIQUE (phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
 -- TABLE: reservations
 -- guest_id              → customer who made the reservation
 -- reserved_by_user_id   → staff who logged it (NULL = online /
 --                          self-service booking)
--- reservation_date      → the date on which the guest created
---                          this reservation record
+-- reservation_date      → reservation calendar date
 -- ============================================================
 CREATE TABLE reservations (
     id                      BIGINT          NOT NULL AUTO_INCREMENT,
-    guest_id                VARCHAR(255)    NOT NULL,
+    guest_id                BIGINT          NOT NULL,
     table_id                BIGINT          NOT NULL,
     reserved_by_user_id     VARCHAR(255)    NULL,
     reservation_date        DATE            NOT NULL,
@@ -216,7 +233,7 @@ CREATE TABLE reservations (
 
     CONSTRAINT pk_reservations           PRIMARY KEY (id),
     CONSTRAINT fk_reservations_guest
-        FOREIGN KEY (guest_id) REFERENCES AspNetUsers(Id)
+        FOREIGN KEY (guest_id) REFERENCES guests(id)
         ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_reservations_table
         FOREIGN KEY (table_id) REFERENCES restaurant_tables(id)

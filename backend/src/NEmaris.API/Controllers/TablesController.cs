@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NEmaris.Application.DTOs;
 using NEmaris.Application.Interfaces;
@@ -6,6 +7,7 @@ namespace NEmaris.API.Controllers;
 
 [ApiController]
 [Route("api/tables")]
+[Authorize]
 public class TablesController : ControllerBase
 {
     private readonly ITableService _tableService;

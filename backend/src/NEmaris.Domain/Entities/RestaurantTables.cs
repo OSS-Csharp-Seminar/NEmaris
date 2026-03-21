@@ -11,4 +11,6 @@ public class RestaurantTables
     public TableStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    public ICollection<Reservations> Reservations { get; set; } = [];
 }
