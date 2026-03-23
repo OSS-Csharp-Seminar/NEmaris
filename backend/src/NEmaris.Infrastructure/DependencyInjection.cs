@@ -36,6 +36,7 @@ public static class DependencyInjection
 
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ITableRepository, TableRepository>();
+        services.AddScoped<IMenuCategoryRepository, MenuCategoryRepository>();
 
         return services;
     }
