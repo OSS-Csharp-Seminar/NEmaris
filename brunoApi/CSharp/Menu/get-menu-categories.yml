@@ -5,7 +5,10 @@ info:
 
 http:
   method: GET
-  url: ""
+  url: http://localhost:5000/api/menu-categories
+  body:
+    type: json
+    data: ""
   auth: inherit
 
 settings:

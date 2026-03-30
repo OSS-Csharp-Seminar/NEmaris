@@ -14,6 +14,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<MenuCategory> MenuCategories => Set<MenuCategory>();
 
+    public DbSet<MenuItem> MenuItems => Set<MenuItem>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -55,6 +57,30 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(c => c.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
             entity.HasIndex(c => c.Name).IsUnique();
+        });
+
+        builder.Entity<MenuItem>(entity =>
+        {
+            entity.ToTable("menu_items");
+            entity.HasKey(m => m.Id);
+
+            entity.Property(m => m.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(m => m.Name).HasColumnName("name").HasMaxLength(150).IsRequired();
+            entity.Property(m => m.Description).HasColumnName("description");
+            entity.Property(m => m.Price).HasColumnName("price").IsRequired();
+            entity.Property(m => m.CategoryId).HasColumnName("category_id").IsRequired();
+
+            entity.Property(m => m.Status).HasColumnName("status").IsRequired();
+            entity.Property(m => m.IsAvailable).HasColumnName("is_available").IsRequired();
+            entity.Property(m => m.Sku).HasColumnName("sku");
+
+            entity.Property(m => m.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(m => m.UpdatedAt).HasColumnName("updated_at").IsRequired();
+
+            entity.HasOne(m => m.Category)
+                  .WithMany()
+                  .HasForeignKey(m => m.CategoryId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<RefreshToken>(entity =>

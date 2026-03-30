@@ -5,7 +5,15 @@ info:
 
 http:
   method: PUT
-  url: http://localhost:5000/api/menu-categories
+  url: http://localhost:5000/api/menu-categories/1
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Breakfast",
+        "description": "Updated breakfast menu",
+        "displayOrder": 2
+      }
   auth: inherit
 
 settings:
