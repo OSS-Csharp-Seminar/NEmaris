@@ -38,9 +38,7 @@ public class MenuCategoryService : IMenuCategoryService
         {
             Name = dto.Name,
             Description = dto.Description,
-            AvailableFrom = dto.AvailableFrom,
-            AvailableTo = dto.AvailableTo,
-            IsActive = dto.IsActive,
+            DisplayOrder = dto.DisplayOrder,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -61,9 +59,7 @@ public class MenuCategoryService : IMenuCategoryService
 
         category.Name = dto.Name;
         category.Description = dto.Description;
-        category.AvailableFrom = dto.AvailableFrom;
-        category.AvailableTo = dto.AvailableTo;
-        category.IsActive = dto.IsActive;
+        category.DisplayOrder = dto.DisplayOrder;
         category.UpdatedAt = DateTime.UtcNow;
 
         await _menuCategoryRepository.UpdateAsync(category);
@@ -85,9 +81,7 @@ public class MenuCategoryService : IMenuCategoryService
             Id = category.Id,
             Name = category.Name,
             Description = category.Description,
-            AvailableFrom = category.AvailableFrom,
-            AvailableTo = category.AvailableTo,
-            IsActive = category.IsActive,
+            DisplayOrder = category.DisplayOrder,
             CreatedAt = category.CreatedAt,
             UpdatedAt = category.UpdatedAt
         };
