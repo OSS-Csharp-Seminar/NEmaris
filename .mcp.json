@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "nemaris": {
+      "command": "npm",
+      "args": ["--prefix", "mcpServer", "run", "dev"],
+      "cwd": "."
+    }
+  }
+}

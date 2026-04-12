@@ -26,6 +26,7 @@ docker compose up --build
 | Frontend | http://localhost:3000 |
 | Backend  | http://localhost:5199 |
 | Database | localhost:3307        |
+| Ollama   | http://localhost:11434 |
 
 ---
 
@@ -90,6 +91,27 @@ docker exec -it nemaris_db mysql -u $MYSQL_USER -p NEmaris
 docker compose logs -f db
 docker compose logs -f backend
 docker compose logs -f frontend
+```
+
+---
+
+## Ollama
+
+Ollama runs as a Docker service and is available at `http://localhost:11434`.
+The MCP server connects to it automatically via this port.
+
+After starting the services, pull the model you need:
+
+```bash
+docker exec -it nemaris_ollama ollama pull llama3.2
+```
+
+The model is stored in the `ollama_data` volume and persists across restarts.
+
+To verify Ollama is running:
+
+```bash
+curl http://localhost:11434/api/tags
 ```
 
 ---
