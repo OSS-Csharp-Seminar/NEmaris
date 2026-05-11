@@ -11,22 +11,38 @@ Create a `.env` file in the project root (never commit this):
 MYSQL_ROOT_PASSWORD=        # your root password
 MYSQL_USER=                 # your db username
 MYSQL_PASSWORD=             # your db password
+OLLAMA_MODEL=llama3.2       # optional — pick whichever model your machine can run
 ```
+
+Install [Ollama](https://ollama.com/download) on your host (not in Docker — Docker
+Desktop on macOS and Windows can't pass through Metal or AMD GPUs). Then pull
+whichever model you set in `.env`:
+
+```bash
+ollama pull llama3.2          # 3B, ~2GB, fast on any machine
+ollama pull llama3.1:8b       # 8B, ~4.7GB, needs ~6GB free RAM/VRAM
+ollama pull qwen2.5:7b        # 7B, similar footprint, often better at tools
+```
+
+If `OLLAMA_MODEL` is not set in `.env`, the backend falls back to `llama3.2`.
+Each developer can set a different model in their own `.env` without touching
+committed code.
 
 ---
 
 ## Running the full app
 
 ```bash
-docker compose up --build
+ollama serve                  # in one terminal (or run as a service)
+docker compose up --build     # in another
 ```
 
-| Service  | URL                   |
-|----------|-----------------------|
-| Frontend | http://localhost:3000 |
-| Backend  | http://localhost:5199 |
-| Database | localhost:3307        |
-| Ollama   | http://localhost:11434 |
+| Service  | URL                                   |
+|----------|---------------------------------------|
+| Frontend | http://localhost:3000                 |
+| Backend  | http://localhost:5199                 |
+| Database | localhost:3307                        |
+| Ollama   | http://localhost:11434 (host process) |
 
 ---
 
@@ -97,18 +113,25 @@ docker compose logs -f frontend
 
 ## Ollama
 
-Ollama runs as a Docker service and is available at `http://localhost:11434`.
-The MCP server connects to it automatically via this port.
+Ollama runs **on the host**, not in Docker. Docker Desktop on macOS exposes no
+Metal/Neural Engine to containers, and on Windows it doesn't expose AMD GPUs to
+WSL2 in any practical way — running Ollama in Docker means CPU-only inference,
+which is slow for 7B+ models. Running natively gives you full GPU acceleration
+on every platform.
 
-After starting the services, pull the model you need:
+The backend container reaches the host via `host.docker.internal:11434`
+(configured in [docker-compose.yml](docker-compose.yml)). Linux hosts get this
+hostname through the `extra_hosts: host-gateway` entry.
 
-```bash
-docker exec -it nemaris_ollama ollama pull llama3.2
-```
+### Install + start Ollama
 
-The model is stored in the `ollama_data` volume and persists across restarts.
+| Platform | Install                                              | Start             |
+|----------|------------------------------------------------------|-------------------|
+| macOS    | `brew install ollama` or installer from ollama.com   | `ollama serve`    |
+| Windows  | Installer from ollama.com (runs as a service)        | (auto-starts)     |
+| Linux    | `curl -fsSL https://ollama.com/install.sh \| sh`     | `systemctl start ollama` |
 
-To verify Ollama is running:
+### Verify
 
 ```bash
 curl http://localhost:11434/api/tags

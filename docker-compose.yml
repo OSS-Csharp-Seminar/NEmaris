@@ -30,20 +30,15 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Default: "Server=db;Port=3306;Database=NEmaris;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      Ollama__BaseUrl: "http://host.docker.internal:11434"
+      Ollama__Model: ${OLLAMA_MODEL:-llama3.2}
     ports:
       - "5199:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: nemaris_ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
 
   frontend:
     build:
@@ -58,4 +53,3 @@ services:
 
 volumes:
   nemaris_data:
-  ollama_data:

@@ -7,11 +7,28 @@ namespace NEmaris.Application.Services;
 
 public class ReservationService : IReservationService
 {
+    private static readonly HashSet<string> PlaceholderValues = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "<nil>", "nil", "null", "undefined", "n/a", "na", "none", "unknown",
+        "tbd", "tba", "?", "??", "???", "-", "--", "...", "string"
+    };
+
     private readonly IReservationRepository _reservationRepository;
 
     public ReservationService(IReservationRepository reservationRepository)
     {
         _reservationRepository = reservationRepository;
+    }
+
+    private static bool IsPlaceholder(string value) =>
+        PlaceholderValues.Contains(value.Trim());
+
+    private static string RequireRealValue(string? value, string fieldName)
+    {
+        var trimmed = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed) || IsPlaceholder(trimmed))
+            throw new InvalidOperationException($"{fieldName} is required and must be a real value, not '{trimmed}'.");
+        return trimmed;
     }
 
     public async Task<ReservationResponseDto> CreateReservationAsync(CreateReservationDto dto, string? reservedByUserId)
@@ -25,15 +42,9 @@ public class ReservationService : IReservationService
         if (dto.PartySize <= 0)
             throw new InvalidOperationException("Party size must be greater than zero.");
 
-        var firstName = (dto.FirstName ?? string.Empty).Trim();
-        var lastName = (dto.LastName ?? string.Empty).Trim();
-        var normalizedPhone = (dto.Phone ?? string.Empty).Trim();
-
-        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
-            throw new InvalidOperationException("First name and last name are required.");
-
-        if (string.IsNullOrWhiteSpace(normalizedPhone))
-            throw new InvalidOperationException("Phone number is required.");
+        var firstName = RequireRealValue(dto.FirstName, "First name");
+        var lastName = RequireRealValue(dto.LastName, "Last name");
+        var normalizedPhone = RequireRealValue(dto.Phone, "Phone number");
 
         var normalizedEmail = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim();
         var normalizedNotes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
@@ -126,6 +137,132 @@ public class ReservationService : IReservationService
                 Zone = t.Zone
             })
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<ReservationResponseDto>> GetReservationsByPhoneAsync(string phone)
+    {
+        var normalizedPhone = (phone ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedPhone))
+            throw new InvalidOperationException("Phone number is required.");
+
+        var reservations = await _reservationRepository.GetReservationsByPhoneAsync(normalizedPhone);
+        return reservations.Select(MapToDto).ToList();
+    }
+
+    public async Task<IReadOnlyList<ReservationResponseDto>> GetUpcomingReservationsForGuestAsync(string phone, string lastName)
+    {
+        var normalizedPhone = (phone ?? string.Empty).Trim();
+        var normalizedLastName = (lastName ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedPhone) || string.IsNullOrWhiteSpace(normalizedLastName) ||
+            IsPlaceholder(normalizedPhone) || IsPlaceholder(normalizedLastName))
+            return Array.Empty<ReservationResponseDto>();
+
+        var reservations = await _reservationRepository.GetUpcomingReservationsByPhoneAndLastNameAsync(
+            normalizedPhone, normalizedLastName, DateTime.UtcNow);
+
+        return reservations.Select(MapToDto).ToList();
+    }
+
+    public async Task<ReservationResponseDto> CancelReservationAsync(long id, string phone)
+    {
+        var normalizedPhone = RequireRealValue(phone, "Phone number");
+
+        var reservation = await _reservationRepository.GetReservationByIdAsync(id);
+        if (reservation is null)
+            throw new KeyNotFoundException("Reservation not found.");
+
+        if (!string.Equals(reservation.Guest.Phone, normalizedPhone, StringComparison.Ordinal))
+            throw new InvalidOperationException("Phone number does not match the reservation.");
+
+        if (reservation.Status == ReservationStatus.Cancelled)
+            return MapToDto(reservation);
+
+        if (reservation.Status == ReservationStatus.Completed)
+            throw new InvalidOperationException("Cannot cancel a completed reservation.");
+
+        reservation.Status = ReservationStatus.Cancelled;
+        reservation.UpdatedAt = DateTime.UtcNow;
+        await _reservationRepository.UpdateReservationAsync(reservation);
+
+        return MapToDto(reservation);
+    }
+
+    public async Task<ReservationResponseDto> UpdateReservationAsync(long id, UpdateReservationDto dto)
+    {
+        var normalizedPhone = RequireRealValue(dto.Phone, "Phone number");
+
+        var reservation = await _reservationRepository.GetReservationByIdAsync(id);
+        if (reservation is null)
+            throw new KeyNotFoundException("Reservation not found.");
+
+        if (!string.Equals(reservation.Guest.Phone, normalizedPhone, StringComparison.Ordinal))
+            throw new InvalidOperationException("Phone number does not match the reservation.");
+
+        if (reservation.Status != ReservationStatus.Active)
+            throw new InvalidOperationException($"Cannot update a reservation with status {reservation.Status}.");
+
+        var hasAnyChange =
+            dto.StartTime.HasValue ||
+            dto.EndTime.HasValue ||
+            dto.PartySize.HasValue ||
+            !string.IsNullOrWhiteSpace(dto.TableNumber) ||
+            dto.SpecialRequest is not null;
+
+        if (!hasAnyChange)
+            throw new InvalidOperationException("No fields provided to update.");
+
+        var newStartTime = dto.StartTime ?? reservation.StartTime;
+        var newEndTime = dto.EndTime ?? reservation.EndTime;
+        var newPartySize = dto.PartySize ?? reservation.PartySize;
+
+        if (newEndTime <= newStartTime)
+            throw new InvalidOperationException("End time must be later than start time.");
+
+        var newTableId = reservation.TableId;
+        var newTableForCapacityCheck = reservation.Table;
+
+        if (!string.IsNullOrWhiteSpace(dto.TableNumber))
+        {
+            var trimmed = dto.TableNumber.Trim();
+            var newTable = await _reservationRepository.GetTableByNumberAsync(trimmed)
+                ?? throw new KeyNotFoundException($"No table named '{trimmed}' exists.");
+            newTableId = newTable.Id;
+            newTableForCapacityCheck = newTable;
+        }
+
+        if (newPartySize > newTableForCapacityCheck.Capacity)
+            throw new InvalidOperationException("Party size exceeds the chosen table's capacity.");
+
+        var scheduleOrTableChanged =
+            dto.StartTime.HasValue ||
+            dto.EndTime.HasValue ||
+            !string.IsNullOrWhiteSpace(dto.TableNumber);
+
+        if (scheduleOrTableChanged)
+        {
+            var clash = await _reservationRepository.HasOverlappingReservationAsync(
+                newTableId, newStartTime, newEndTime, excludeReservationId: id);
+            if (clash)
+                throw new InvalidOperationException("Selected table is already reserved for that time slot.");
+        }
+
+        reservation.TableId = newTableId;
+        reservation.Table = newTableForCapacityCheck;
+        reservation.StartTime = newStartTime;
+        reservation.EndTime = newEndTime;
+        reservation.ReservationDate = DateOnly.FromDateTime(newStartTime);
+        reservation.PartySize = newPartySize;
+
+        if (dto.SpecialRequest is not null)
+            reservation.SpecialRequest = string.IsNullOrWhiteSpace(dto.SpecialRequest)
+                ? null
+                : dto.SpecialRequest.Trim();
+
+        reservation.UpdatedAt = DateTime.UtcNow;
+        await _reservationRepository.UpdateReservationAsync(reservation);
+
+        return MapToDto(reservation);
     }
 
     private static ReservationResponseDto MapToDto(Reservations reservation)

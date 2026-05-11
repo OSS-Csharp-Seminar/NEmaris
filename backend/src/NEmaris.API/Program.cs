@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using NEmaris.Application;
 using NEmaris.Domain.Entities;
@@ -8,6 +10,7 @@ using NEmaris.Infrastructure;
 using NEmaris.Infrastructure.Persistence;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,7 +46,33 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddCors();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+#pragma warning disable ASPDEPR005 // KnownNetworks is obsolete; container SDK doesn't have KnownIPNetworks yet
+    options.KnownNetworks.Clear();
+#pragma warning restore ASPDEPR005
+    options.KnownProxies.Clear();
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("chat", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        });
+    });
+});
+
 var app = builder.Build();
+app.UseForwardedHeaders();
 app.UseCors(policy => policy
     .WithOrigins("http://localhost:3000")
     .AllowAnyHeader()
@@ -52,6 +81,7 @@ app.UseCors(policy => policy
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/api/table-layout/tables", async (AppDbContext db) =>
