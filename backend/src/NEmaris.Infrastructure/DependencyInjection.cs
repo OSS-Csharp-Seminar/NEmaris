@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using NEmaris.Application.Configuration;
 using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
 using NEmaris.Infrastructure.Persistence;
@@ -37,6 +38,9 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ITableRepository, TableRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
+
+        services.Configure<OllamaOptions>(config.GetSection(OllamaOptions.SectionName));
+        services.AddHttpClient<IOllamaClient, OllamaClient>();
 
         return services;
     }

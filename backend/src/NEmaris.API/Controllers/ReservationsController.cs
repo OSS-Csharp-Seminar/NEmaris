@@ -61,4 +61,54 @@ public class ReservationsController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpGet("by-phone")]
+    public async Task<IActionResult> GetByPhone([FromQuery] string phone)
+    {
+        try
+        {
+            var reservations = await _reservationService.GetReservationsByPhoneAsync(phone);
+            return Ok(reservations);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:long}")]
+    public async Task<IActionResult> Update(long id, [FromBody] UpdateReservationDto request)
+    {
+        try
+        {
+            var updated = await _reservationService.UpdateReservationAsync(id, request);
+            return Ok(updated);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Cancel(long id, [FromQuery] string phone)
+    {
+        try
+        {
+            var cancelled = await _reservationService.CancelReservationAsync(id, phone);
+            return Ok(cancelled);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 }

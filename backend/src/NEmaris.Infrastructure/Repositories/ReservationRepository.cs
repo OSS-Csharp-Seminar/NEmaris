@@ -37,14 +37,20 @@ public class ReservationRepository : IReservationRepository
         return await _context.Tables.FirstOrDefaultAsync(t => t.Id == tableId);
     }
 
-    public async Task<bool> HasOverlappingReservationAsync(long tableId, DateTime startTime, DateTime endTime)
+    public async Task<RestaurantTables?> GetTableByNumberAsync(string tableNumber)
+    {
+        return await _context.Tables.FirstOrDefaultAsync(t => t.TableNumber == tableNumber);
+    }
+
+    public async Task<bool> HasOverlappingReservationAsync(long tableId, DateTime startTime, DateTime endTime, long? excludeReservationId = null)
     {
         return await _context.Reservations.AnyAsync(r =>
             r.TableId == tableId &&
             r.Status != ReservationStatus.Cancelled &&
             r.Status != ReservationStatus.NoShow &&
             r.StartTime < endTime &&
-            startTime < r.EndTime);
+            startTime < r.EndTime &&
+            (!excludeReservationId.HasValue || r.Id != excludeReservationId.Value));
     }
 
     public async Task AddReservationAsync(Reservations reservation)
@@ -92,5 +98,48 @@ public class ReservationRepository : IReservationRepository
             .OrderBy(t => t.Capacity)
             .ThenBy(t => t.TableNumber)
             .ToListAsync();
+    }
+
+    public async Task<Reservations?> GetReservationByIdAsync(long id)
+    {
+        return await _context.Reservations
+            .Include(r => r.Guest)
+            .Include(r => r.Table)
+            .FirstOrDefaultAsync(r => r.Id == id);
+    }
+
+    public async Task<IReadOnlyList<Reservations>> GetReservationsByPhoneAsync(string phone)
+    {
+        return await _context.Reservations
+            .AsNoTracking()
+            .Include(r => r.Guest)
+            .Include(r => r.Table)
+            .Where(r => r.Guest.Phone == phone)
+            .OrderBy(r => r.StartTime)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<Reservations>> GetUpcomingReservationsByPhoneAndLastNameAsync(
+        string phone, string lastName, DateTime asOfUtc)
+    {
+        var normalizedLastName = lastName.ToLower();
+
+        return await _context.Reservations
+            .AsNoTracking()
+            .Include(r => r.Guest)
+            .Include(r => r.Table)
+            .Where(r =>
+                r.Guest.Phone == phone &&
+                r.Guest.LastName.ToLower() == normalizedLastName &&
+                r.Status == ReservationStatus.Active &&
+                r.StartTime >= asOfUtc)
+            .OrderBy(r => r.StartTime)
+            .ToListAsync();
+    }
+
+    public async Task UpdateReservationAsync(Reservations reservation)
+    {
+        _context.Reservations.Update(reservation);
+        await _context.SaveChangesAsync();
     }
 }
