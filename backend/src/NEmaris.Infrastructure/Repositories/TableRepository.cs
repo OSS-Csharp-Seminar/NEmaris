@@ -18,7 +18,8 @@ public class TableRepository : ITableRepository
     {
         return await _context.Tables
             .AsNoTracking()
-            .OrderBy(t => t.TableNumber)
+            .OrderBy(t => t.Floor)
+            .ThenBy(t => t.TableNumber)
             .ToListAsync();
     }
 

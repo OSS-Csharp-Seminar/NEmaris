@@ -1,37 +1,15 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  type ReactNode,
-} from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { tokenStorage } from "../services/tokenStorage";
 import authService, {
   type LoginRequest,
   type RegisterRequest,
 } from "../services/authService";
+import {
+  AuthContext,
+  type AuthContextType,
+  type User,
+} from "./auth-context";
 
-// ---- types ----
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isAdmin: boolean;
-  isLoading: boolean;
-  login: (data: LoginRequest) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<string>;
-  logout: () => Promise<void>;
-}
-
-// ---- helpers ----
 function parseJwt(token: string): Record<string, string> {
   try {
     const base64Url = token.split(".")[1];
@@ -68,20 +46,11 @@ function userFromToken(accessToken: string): User | null {
   };
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
+  const [user, setUser] = useState<User | null>(() => {
     const token = tokenStorage.getAccessToken();
-    if (token) {
-      const parsed = userFromToken(token);
-      setUser(parsed);
-    }
-    setIsLoading(false);
-  }, []);
+    return token ? userFromToken(token) : null;
+  });
 
   const login = useCallback(async (data: LoginRequest) => {
     const res = await authService.login(data);
@@ -96,12 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     const refreshToken = tokenStorage.getRefreshToken();
+
     if (refreshToken) {
       try {
         await authService.revoke(refreshToken);
       } catch {
+        // Local logout should still complete if the server-side revoke fails.
       }
     }
+
     tokenStorage.clearTokens();
     setUser(null);
   }, []);
@@ -110,17 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isAuthenticated: !!user,
     isAdmin: user?.role === "Admin",
-    isLoading,
+    isLoading: false,
     login,
     register,
     logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthContextType {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
 }

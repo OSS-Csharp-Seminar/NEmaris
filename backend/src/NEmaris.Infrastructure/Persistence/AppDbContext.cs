@@ -34,10 +34,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(t => t.Capacity).HasColumnName("capacity").IsRequired();
             entity.Property(t => t.Zone).HasColumnName("zone").HasMaxLength(100);
             entity.Property(t => t.Status).HasColumnName("status").HasConversion<int>().IsRequired();
+            entity.Property(t => t.Floor).HasColumnName("floor").IsRequired();
+            entity.Property(t => t.PositionX).HasColumnName("position_x").HasPrecision(5, 2).IsRequired();
+            entity.Property(t => t.PositionY).HasColumnName("position_y").HasPrecision(5, 2).IsRequired();
+            entity.Property(t => t.Shape).HasColumnName("shape").HasConversion<int>().IsRequired();
+            entity.Property(t => t.Rotation).HasColumnName("rotation").IsRequired();
             entity.Property(t => t.CreatedAt).HasColumnName("created_at").IsRequired();
             entity.Property(t => t.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
             entity.HasIndex(t => t.TableNumber).IsUnique();
+            entity.HasIndex(t => t.Floor);
         });
 
         builder.Entity<RefreshToken>(entity =>

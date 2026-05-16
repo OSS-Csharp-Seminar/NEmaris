@@ -19,7 +19,7 @@ public class TablesController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var tables = await _tableService.GetAllAsync();
-        return Ok(tables);
+        return Ok(tables.Select(ToResponse));
     }
 
     [HttpGet("{id:long}")]
@@ -28,7 +28,7 @@ public class TablesController : ControllerBase
         try
         {
             var table = await _tableService.GetByIdAsync(id);
-            return Ok(table);
+            return Ok(ToResponse(table));
         }
         catch (KeyNotFoundException ex)
         {
@@ -80,5 +80,24 @@ public class TablesController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+    }
+
+    private static object ToResponse(TableDto table)
+    {
+        return new
+        {
+            table.Id,
+            table.TableNumber,
+            table.Capacity,
+            table.Zone,
+            Status = (int)table.Status,
+            table.Floor,
+            table.PositionX,
+            table.PositionY,
+            Shape = (int)table.Shape,
+            table.Rotation,
+            table.CreatedAt,
+            table.UpdatedAt
+        };
     }
 }

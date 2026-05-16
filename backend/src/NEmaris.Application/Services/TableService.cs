@@ -40,6 +40,11 @@ public class TableService : ITableService
             Capacity = dto.Capacity,
             Zone = dto.Zone,
             Status = dto.Status,
+            Floor = dto.Floor,
+            PositionX = dto.PositionX,
+            PositionY = dto.PositionY,
+            Shape = dto.Shape,
+            Rotation = dto.Rotation,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -62,6 +67,11 @@ public class TableService : ITableService
         table.Capacity = dto.Capacity;
         table.Zone = dto.Zone;
         table.Status = dto.Status;
+        table.Floor = dto.Floor;
+        table.PositionX = dto.PositionX;
+        table.PositionY = dto.PositionY;
+        table.Shape = dto.Shape;
+        table.Rotation = dto.Rotation;
         table.UpdatedAt = DateTime.UtcNow;
 
         await _tableRepository.UpdateAsync(table);
@@ -85,6 +95,11 @@ public class TableService : ITableService
             Capacity = table.Capacity,
             Zone = table.Zone,
             Status = table.Status,
+            Floor = table.Floor,
+            PositionX = table.PositionX,
+            PositionY = table.PositionY,
+            Shape = table.Shape,
+            Rotation = table.Rotation,
             CreatedAt = table.CreatedAt,
             UpdatedAt = table.UpdatedAt
         };

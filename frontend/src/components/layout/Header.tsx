@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import NemarisIcon from "../common/NemarisIcon";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 export default function Header() {
   const { isAuthenticated, isAdmin, user, logout } = useAuth();

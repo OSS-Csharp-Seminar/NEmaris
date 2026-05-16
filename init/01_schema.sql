@@ -183,12 +183,21 @@ CREATE TABLE restaurant_tables (
     capacity        INT             NOT NULL,
     zone            VARCHAR(100)    NULL,
     status          INT             NOT NULL,
+    floor           INT             NOT NULL DEFAULT 1,
+    position_x      DECIMAL(5,2)    NOT NULL DEFAULT 0,
+    position_y      DECIMAL(5,2)    NOT NULL DEFAULT 0,
+    shape           INT             NOT NULL DEFAULT 0,
+    rotation        INT             NOT NULL DEFAULT 0,
     created_at      DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at      DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
     CONSTRAINT pk_restaurant_tables        PRIMARY KEY (id),
     CONSTRAINT uq_restaurant_tables_number UNIQUE (table_number),
-    CONSTRAINT chk_restaurant_tables_cap   CHECK (capacity > 0)
+    CONSTRAINT chk_restaurant_tables_cap   CHECK (capacity > 0),
+    CONSTRAINT chk_restaurant_tables_floor CHECK (floor BETWEEN 1 AND 3),
+    CONSTRAINT chk_restaurant_tables_x     CHECK (position_x BETWEEN 0 AND 100),
+    CONSTRAINT chk_restaurant_tables_y     CHECK (position_y BETWEEN 0 AND 100),
+    CONSTRAINT chk_restaurant_tables_rot   CHECK (rotation BETWEEN 0 AND 359)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -415,6 +424,7 @@ CREATE INDEX idx_menu_items_cat_avail ON menu_items(category_id, is_available, s
 
 -- restaurant_tables floor status
 CREATE INDEX idx_tables_status        ON restaurant_tables(status);
+CREATE INDEX idx_tables_floor         ON restaurant_tables(floor);
 
 -- reservations scheduling queries
 CREATE INDEX idx_res_table_start      ON reservations(table_id, start_time);

@@ -7,6 +7,7 @@ using NEmaris.Domain.Enums;
 using NEmaris.Infrastructure;
 using NEmaris.Infrastructure.Persistence;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +54,31 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/api/table-layout/tables", async (AppDbContext db) =>
+{
+    var tables = await db.Tables
+        .AsNoTracking()
+        .OrderBy(table => table.Floor)
+        .ThenBy(table => table.TableNumber)
+        .Select(table => new
+        {
+            table.Id,
+            table.TableNumber,
+            table.Capacity,
+            table.Zone,
+            Status = (int)table.Status,
+            table.Floor,
+            table.PositionX,
+            table.PositionY,
+            Shape = (int)table.Shape,
+            table.Rotation,
+            table.CreatedAt,
+            table.UpdatedAt
+        })
+        .ToListAsync();
+
+    return Results.Ok(tables);
+});
 app.MapControllers();
 // Seed admin user
 using (var scope = app.Services.CreateScope())
