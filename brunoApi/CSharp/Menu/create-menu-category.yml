@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: http://localhost:5000/api/menu-categories
+  url: http://localhost:5199/api/menu-categories
   body:
     type: json
     data: |-

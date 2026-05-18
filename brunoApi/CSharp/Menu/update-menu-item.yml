@@ -1,0 +1,27 @@
+info:
+  name: update-menu-item
+  type: http
+  seq: 8
+
+http:
+  method: PUT
+  url: http://localhost:5199/api/menu-items/1
+  body:
+    type: json
+    data: |-
+      {
+        "categoryId": 2,
+        "name": "Updated Pancakes",
+        "description": "Updated fluffy pancakes with syrup",
+        "price": 7.50,
+        "status": 1,
+        "isAvailable": true,
+        "sku": "BREAKFAST-PANCAKES-UPDATED"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -7,6 +7,7 @@ import HomePage from "../pages/HomePage";
 import RegisterPage from "../pages/RegisterPage";
 import ProtectedRoute from "../components/guards/ProtectedRoute";
 import AdminRoute from "../components/guards/AdminRoute";
+import MenuManagementPage from "../pages/MenuManagementPage";
 
 const router = createBrowserRouter([
   {
@@ -28,6 +29,10 @@ const router = createBrowserRouter([
           {
             path: "home",
             element: <HomePage />,
+          },
+          {
+            path: "menu",
+            element: <MenuManagementPage />,
           },
         ],
       },
