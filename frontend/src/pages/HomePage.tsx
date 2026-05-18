@@ -1,9 +1,9 @@
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import FloorSelector from "../features/floors/components/FloorSelector";
 import TablePicker from "../features/floors/components/TablePicker";
 import tableService from "../features/floors/services/tableService";
 import type { RestaurantFloor } from "../features/floors/types/floor";
-
 export default function HomePage() {
   const [floors, setFloors] = useState<RestaurantFloor[]>([]);
   const [selectedFloor, setSelectedFloor] = useState<RestaurantFloor | null>(
@@ -42,6 +42,14 @@ export default function HomePage() {
 
   return (
     <div className="h-full rounded-lg border border-border bg-background p-6">
+      <div className="mb-4 flex justify-end">
+        <Link
+        to="/menu"
+        className="rounded-xl bg-black px-6 py-3 text-white font-medium transition-opacity hover:opacity-80"
+      >
+        Open Menu Management
+      </Link>
+      </div>
       {isLoading ? (
         <PageState title="Ucitavanje stolova" />
       ) : error ? (
