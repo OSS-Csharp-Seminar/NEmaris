@@ -10,4 +10,5 @@ public interface IMenuCategoryRepository
     Task UpdateAsync(MenuCategory category);
     Task DeleteAsync(MenuCategory category);
     Task<bool> ExistsByNameAsync(string name, long? excludeId = null);
+    Task<bool> ExistsByDisplayOrderAsync(int displayOrder, long? excludeId = null);
 }

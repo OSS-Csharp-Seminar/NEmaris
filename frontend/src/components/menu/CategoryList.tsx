@@ -5,6 +5,8 @@ interface CategoryListProps {
   selectedCategoryId: number | null;
   isLoading: boolean;
   onSelectCategory: (categoryId: number) => void;
+  onDelete: (categoryId: number) => void;
+  onEdit: (category: MenuCategory) => void;
 }
 
 export default function CategoryList({
@@ -12,6 +14,8 @@ export default function CategoryList({
   selectedCategoryId,
   isLoading,
   onSelectCategory,
+  onDelete,
+  onEdit,
 }: CategoryListProps) {
   if (isLoading) {
     return <p className="text-sm text-gray-500">Loading categories...</p>;
@@ -24,30 +28,54 @@ export default function CategoryList({
   return (
     <div className="flex flex-col gap-3">
       {categories.map((category) => (
-        <button
+        <div
           key={category.id}
-          type="button"
-          onClick={() => onSelectCategory(category.id)}
-          className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+          className={`rounded-lg border px-4 py-3 transition-colors ${
             selectedCategoryId === category.id
               ? "border-blue-500 bg-blue-50"
               : "border-gray-200 hover:bg-gray-50"
           }`}
         >
           <div className="flex items-center justify-between gap-4">
-            <div>
-              <h4 className="font-medium text-gray-800">{category.name}</h4>
+            <button
+              type="button"
+              onClick={() => onSelectCategory(category.id)}
+              className="flex-1 text-left"
+            >
+              <div>
+                <h4 className="font-medium text-gray-800">{category.name}</h4>
 
-              <p className="text-sm text-gray-500">
-                {category.description || "No description"}
-              </p>
+                <p className="text-sm text-gray-500">
+                  {category.description || "No description"}
+                </p>
+              </div>
+            </button>
+
+            <div className="flex flex-col items-end gap-3">
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
+                Order: {category.displayOrder}
+              </span>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onEdit(category)}
+                  className="rounded-lg bg-blue-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
+                >
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onDelete(category.id)}
+                  className="rounded-lg bg-red-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
-              Order: {category.displayOrder}
-            </span>
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );

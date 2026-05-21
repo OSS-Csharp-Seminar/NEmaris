@@ -78,8 +78,12 @@ export default function MenuBrowsePage() {
         setCategories(loadedCategories);
         setMenuItems(loadedItems);
 
-        if (loadedCategories.length > 0) {
-          setSelectedCategoryId(loadedCategories[0].id);
+        const sortedLoadedCategories = [...loadedCategories].sort(
+          (a, b) => a.displayOrder - b.displayOrder
+        );
+
+        if (sortedLoadedCategories.length > 0) {
+          setSelectedCategoryId(sortedLoadedCategories[0].id);
         }
       } catch {
         setError("Failed to load menu.");
@@ -101,6 +105,10 @@ export default function MenuBrowsePage() {
 
   const selectedCategory = categories.find(
     (category) => category.id === selectedCategoryId
+  );
+
+  const sortedCategories = [...categories].sort(
+    (a, b) => a.displayOrder - b.displayOrder
   );
 
   const selectedCategoryItems = menuItems.filter(
@@ -135,12 +143,12 @@ export default function MenuBrowsePage() {
                 Categories
               </h3>
 
-              {categories.length === 0 && (
+              {sortedCategories.length === 0 && (
                 <p className="text-sm text-gray-500">No categories found.</p>
               )}
 
               <div className="flex flex-col gap-3">
-                {categories.map((category) => (
+                {sortedCategories.map((category) => (
                   <button
                     key={category.id}
                     type="button"

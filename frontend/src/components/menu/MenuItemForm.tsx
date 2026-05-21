@@ -12,6 +12,8 @@ interface MenuItemFormProps {
   onItemSkuChange: (value: string) => void;
   onItemIsAvailableChange: (value: boolean) => void;
   onSubmit: (e: FormEvent) => void;
+  editingItemId: number | null;
+  onCancelEdit: () => void;
 }
 
 export default function MenuItemForm({
@@ -26,6 +28,8 @@ export default function MenuItemForm({
   onItemSkuChange,
   onItemIsAvailableChange,
   onSubmit,
+  editingItemId,
+  onCancelEdit,
 }: MenuItemFormProps) {
   const inputClass =
     "w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 transition-colors";
@@ -83,8 +87,18 @@ export default function MenuItemForm({
         type="submit"
         className="rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground transition-opacity hover:opacity-90"
       >
-        Create Menu Item
+        {editingItemId ? "Update Menu Item" : "Create Menu Item"}
       </button>
+
+      {editingItemId && (
+      <button
+        type="button"
+        onClick={onCancelEdit}
+        className="rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-100"
+      >
+        Cancel Edit
+      </button>
+    )}
     </form>
   );
 }

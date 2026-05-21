@@ -34,6 +34,10 @@ public class MenuCategoryService : IMenuCategoryService
         if (categoryNameTaken)
             throw new InvalidOperationException("Menu category name already exists.");
 
+        var displayOrderTaken = await _menuCategoryRepository.ExistsByDisplayOrderAsync(dto.DisplayOrder);
+        if (displayOrderTaken)
+            throw new InvalidOperationException("Menu category display order already exists.");
+
         var category = new MenuCategory
         {
             Name = dto.Name,
@@ -56,6 +60,10 @@ public class MenuCategoryService : IMenuCategoryService
         var categoryNameTaken = await _menuCategoryRepository.ExistsByNameAsync(dto.Name, id);
         if (categoryNameTaken)
             throw new InvalidOperationException("Menu category name already exists.");
+
+        var displayOrderTaken = await _menuCategoryRepository.ExistsByDisplayOrderAsync(dto.DisplayOrder, id);
+        if (displayOrderTaken)
+            throw new InvalidOperationException("Menu category display order already exists.");
 
         category.Name = dto.Name;
         category.Description = dto.Description;

@@ -3,6 +3,7 @@ import menuCategoryService, {
   type MenuCategory,
 } from "../services/menuCategoryService";
 import menuItemService, { type MenuItem } from "../services/menuItemsService";
+
 import CategoryForm from "../components/menu/CategoryForm";
 import CategoryList from "../components/menu/CategoryList";
 import MenuItemForm from "../components/menu/MenuItemForm";
@@ -18,12 +19,17 @@ export default function MenuManagementPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [displayOrder, setDisplayOrder] = useState(1);
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(
+    null
+  );
 
   const [itemName, setItemName] = useState("");
   const [itemDescription, setItemDescription] = useState("");
   const [itemPrice, setItemPrice] = useState(0);
   const [itemSku, setItemSku] = useState("");
   const [itemIsAvailable, setItemIsAvailable] = useState(true);
+
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,10 +93,18 @@ export default function MenuManagementPage() {
       const loadedCategories = normalizeCategories(response.data);
 
       setCategories(loadedCategories);
+      setSelectedCategoryId((currentCategoryId) => {
+        if (loadedCategories.length === 0) return null;
 
-      if (loadedCategories.length > 0 && selectedCategoryId === null) {
-        setSelectedCategoryId(loadedCategories[0].id);
-      }
+        if (
+          currentCategoryId &&
+          loadedCategories.some((category) => category.id === currentCategoryId)
+        ) {
+          return currentCategoryId;
+        }
+
+        return loadedCategories[0].id;
+      });
     } catch {
       setError("Failed to load menu categories.");
     } finally {
@@ -114,36 +128,78 @@ export default function MenuManagementPage() {
     loadMenuItems();
   }, []);
 
-  const handleCreateCategory = async (e: FormEvent) => {
+  const handleSubmitCategory = async (e: FormEvent) => {
     e.preventDefault();
 
     setError(null);
     setMessage(null);
+
+    if (!Number.isInteger(displayOrder) || displayOrder < 1) {
+      setError("Menu category display order must be a whole number greater than 0.");
+      return;
+    }
+
+    const displayOrderTaken = categories.some(
+      (category) =>
+        category.displayOrder === displayOrder &&
+        category.id !== editingCategoryId
+    );
+
+    if (displayOrderTaken) {
+      setError(`Display order ${displayOrder} is already used by another menu category.`);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const response = await menuCategoryService.create({
-        name,
-        description: description || undefined,
-        displayOrder,
-      });
+      if (editingCategoryId) {
+        await menuCategoryService.update(editingCategoryId, {
+          name,
+          description: description || undefined,
+          displayOrder,
+        });
 
-      setMessage("Menu category created successfully.");
+        setMessage("Menu category updated successfully.");
+        setSelectedCategoryId(editingCategoryId);
+      } else {
+        const response = await menuCategoryService.create({
+          name,
+          description: description || undefined,
+          displayOrder,
+        });
+
+        setMessage("Menu category created successfully.");
+
+        if (response.data.id) {
+          setSelectedCategoryId(response.data.id);
+        }
+      }
+
+      setEditingCategoryId(null);
 
       setName("");
       setDescription("");
       setDisplayOrder(1);
 
       await loadCategories();
-
-      if (response.data.id) {
-        setSelectedCategoryId(response.data.id);
-      }
     } catch {
-      setError("Failed to create menu category.");
+      setError(
+        editingCategoryId
+          ? "Failed to update menu category."
+          : "Failed to create menu category."
+      );
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancelCategoryEdit = () => {
+    setEditingCategoryId(null);
+
+    setName("");
+    setDescription("");
+    setDisplayOrder(1);
   };
 
   const handleCreateMenuItem = async (e: FormEvent) => {
@@ -155,17 +211,33 @@ export default function MenuManagementPage() {
     setMessage(null);
 
     try {
-      await menuItemService.create({
-        categoryId: selectedCategoryId,
-        name: itemName,
-        description: itemDescription || undefined,
-        price: itemPrice,
-        status: 1,
-        isAvailable: itemIsAvailable,
-        sku: itemSku || undefined,
-      });
+      if (editingItemId) {
+        await menuItemService.update(editingItemId, {
+          categoryId: selectedCategoryId,
+          name: itemName,
+          description: itemDescription || undefined,
+          price: itemPrice,
+          status: 1,
+          isAvailable: itemIsAvailable,
+          sku: itemSku || undefined,
+        });
 
-      setMessage("Menu item created successfully.");
+        setMessage("Menu item updated successfully.");
+      } else {
+        await menuItemService.create({
+          categoryId: selectedCategoryId,
+          name: itemName,
+          description: itemDescription || undefined,
+          price: itemPrice,
+          status: 1,
+          isAvailable: itemIsAvailable,
+          sku: itemSku || undefined,
+        });
+
+        setMessage("Menu item created successfully.");
+      }
+
+      setEditingItemId(null);
 
       setItemName("");
       setItemDescription("");
@@ -175,9 +247,80 @@ export default function MenuManagementPage() {
 
       await loadMenuItems();
     } catch {
-      setError("Failed to create menu item.");
+      setError(
+        editingItemId
+          ? "Failed to update menu item."
+          : "Failed to create menu item."
+      );
     }
   };
+
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+
+    setItemName("");
+    setItemDescription("");
+    setItemPrice(0);
+    setItemSku("");
+    setItemIsAvailable(true);
+  };
+
+  const handleDeleteCategory = async (categoryId: number) => {
+    try {
+      setError(null);
+      setMessage(null);
+
+      await menuCategoryService.delete(categoryId);
+
+      if (editingCategoryId === categoryId) {
+        handleCancelCategoryEdit();
+      }
+
+      setMessage("Menu category deleted successfully.");
+
+      await Promise.all([loadCategories(), loadMenuItems()]);
+    } catch {
+      setError("Failed to delete menu category.");
+    }
+  };
+
+  const handleEditCategory = (category: MenuCategory) => {
+    setEditingCategoryId(category.id);
+    setSelectedCategoryId(category.id);
+
+    setName(category.name);
+    setDescription(category.description || "");
+    setDisplayOrder(category.displayOrder);
+  };
+
+  const handleDeleteMenuItem = async (itemId: number) => {
+    try {
+      setError(null);
+      setMessage(null);
+
+      await menuItemService.delete(itemId);
+
+      setMessage("Menu item deleted successfully.");
+
+      await loadMenuItems();
+    } catch {
+      setError("Failed to delete menu item.");
+    }
+  };
+
+  const handleEditMenuItem = (item: MenuItem) => {
+    setEditingItemId(item.id);
+
+    setItemName(item.name);
+    setItemDescription(item.description || "");
+    setItemPrice(item.price);
+    setItemSku(item.sku || "");
+    setItemIsAvailable(item.isAvailable);
+  };
+
+  const sortedCategories = [...categories].sort(
+    (a, b) => a.displayOrder - b.displayOrder
+  );
 
   const selectedCategory = categories.find(
     (category) => category.id === selectedCategoryId
@@ -221,17 +364,21 @@ export default function MenuManagementPage() {
               description={description}
               displayOrder={displayOrder}
               isSubmitting={isSubmitting}
+              editingCategoryId={editingCategoryId}
               onNameChange={setName}
               onDescriptionChange={setDescription}
               onDisplayOrderChange={setDisplayOrder}
-              onSubmit={handleCreateCategory}
+              onSubmit={handleSubmitCategory}
+              onCancelEdit={handleCancelCategoryEdit}
             />
 
             <CategoryList
-              categories={categories}
+              categories={sortedCategories}
               selectedCategoryId={selectedCategoryId}
               isLoading={isLoading}
               onSelectCategory={setSelectedCategoryId}
+              onDelete={handleDeleteCategory}
+              onEdit={handleEditCategory}
             />
           </section>
 
@@ -263,6 +410,8 @@ export default function MenuManagementPage() {
                 onItemSkuChange={setItemSku}
                 onItemIsAvailableChange={setItemIsAvailable}
                 onSubmit={handleCreateMenuItem}
+                editingItemId={editingItemId}
+                onCancelEdit={handleCancelEdit}
               />
             )}
 
@@ -272,8 +421,13 @@ export default function MenuManagementPage() {
               </p>
             )}
 
-            {selectedCategory && (<MenuItemList items={selectedCategoryItems} />
-        )}
+            {selectedCategory && (
+              <MenuItemList
+                items={selectedCategoryItems}
+                onDelete={handleDeleteMenuItem}
+                onEdit={handleEditMenuItem}
+              />
+            )}
           </section>
         </div>
       </div>

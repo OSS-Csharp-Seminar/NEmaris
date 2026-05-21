@@ -2,9 +2,15 @@ import type { MenuItem } from "../../services/menuItemsService";
 
 interface MenuItemCardProps {
   item: MenuItem;
+  onDelete: (itemId: number) => void;
+  onEdit: (item: MenuItem) => void;
 }
 
-export default function MenuItemCard({ item }: MenuItemCardProps) {
+export default function MenuItemCard({
+  item,
+  onDelete,
+  onEdit,
+}: MenuItemCardProps) {
   return (
     <div className="rounded-lg border border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between gap-4">
@@ -30,6 +36,22 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
           >
             {item.isAvailable ? "Available" : "Unavailable"}
           </span>
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => onEdit(item)}
+              className="rounded-lg bg-blue-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(item.id)}
+              className="rounded-lg bg-red-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </div>
     </div>

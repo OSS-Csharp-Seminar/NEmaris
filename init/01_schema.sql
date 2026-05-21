@@ -146,7 +146,8 @@ CREATE TABLE menu_categories (
     updated_at      DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
     CONSTRAINT pk_menu_categories      PRIMARY KEY (id),
-    CONSTRAINT uq_menu_categories_name UNIQUE (name)
+    CONSTRAINT uq_menu_categories_name UNIQUE (name),
+    CONSTRAINT uq_menu_categories_display_order UNIQUE (display_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

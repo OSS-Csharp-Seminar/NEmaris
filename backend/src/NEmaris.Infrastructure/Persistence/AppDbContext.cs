@@ -63,6 +63,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(c => c.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
             entity.HasIndex(c => c.Name).IsUnique();
+            entity.HasIndex(c => c.DisplayOrder).IsUnique();
         });
 
         builder.Entity<MenuItem>(entity =>

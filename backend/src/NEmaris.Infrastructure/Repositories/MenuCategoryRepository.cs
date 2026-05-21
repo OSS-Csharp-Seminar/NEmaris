@@ -18,7 +18,8 @@ public class MenuCategoryRepository : IMenuCategoryRepository
     {
         return await _context.MenuCategories
             .AsNoTracking()
-            .OrderBy(c => c.Name)
+            .OrderBy(c => c.DisplayOrder)
+            .ThenBy(c => c.Name)
             .ToListAsync();
     }
 
@@ -50,6 +51,13 @@ public class MenuCategoryRepository : IMenuCategoryRepository
     {
         return await _context.MenuCategories.AnyAsync(c =>
             c.Name == name &&
+            (!excludeId.HasValue || c.Id != excludeId.Value));
+    }
+
+    public async Task<bool> ExistsByDisplayOrderAsync(int displayOrder, long? excludeId = null)
+    {
+        return await _context.MenuCategories.AnyAsync(c =>
+            c.DisplayOrder == displayOrder &&
             (!excludeId.HasValue || c.Id != excludeId.Value));
     }
 }
