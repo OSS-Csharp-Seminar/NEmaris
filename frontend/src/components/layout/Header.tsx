@@ -27,6 +27,13 @@ export default function Header() {
               )}
             </span>
 
+            <div
+              onClick={() => navigate("/orders")}
+              className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+            >
+              Narudžbe
+            </div>
+
             {isAdmin && (
               <div
                 onClick={() => navigate("/register")}

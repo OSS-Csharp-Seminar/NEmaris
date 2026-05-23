@@ -18,6 +18,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
 
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<Payment> Payments => Set<Payment>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -155,6 +159,94 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany(u => u.RefreshTokens)
                   .HasForeignKey(r => r.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Order>(entity =>
+        {
+            entity.ToTable("orders");
+            entity.HasKey(o => o.Id);
+
+            entity.Property(o => o.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(o => o.OrderNumber).HasColumnName("order_number").HasMaxLength(30).IsRequired();
+            entity.Property(o => o.TableId).HasColumnName("table_id").IsRequired();
+            entity.Property(o => o.WaiterUserId).HasColumnName("waiter_user_id").IsRequired();
+            entity.Property(o => o.GuestId).HasColumnName("guest_id");
+            entity.Property(o => o.ReservationId).HasColumnName("reservation_id");
+            entity.Property(o => o.Status).HasColumnName("status").HasConversion<int>().IsRequired();
+            entity.Property(o => o.PaymentStatus).HasColumnName("payment_status").HasConversion<int>().IsRequired();
+            entity.Property(o => o.Subtotal).HasColumnName("subtotal").HasPrecision(10, 2).IsRequired();
+            entity.Property(o => o.DiscountAmount).HasColumnName("discount_amount").HasPrecision(10, 2).IsRequired();
+            entity.Property(o => o.TotalAmount).HasColumnName("total_amount").HasPrecision(10, 2).IsRequired();
+            entity.Property(o => o.OpenedAt).HasColumnName("opened_at").IsRequired();
+            entity.Property(o => o.ClosedAt).HasColumnName("closed_at");
+
+            entity.HasIndex(o => o.OrderNumber).IsUnique();
+
+            entity.HasOne(o => o.Table)
+                .WithMany()
+                .HasForeignKey(o => o.TableId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(o => o.Waiter)
+                .WithMany()
+                .HasForeignKey(o => o.WaiterUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(o => o.Guest)
+                .WithMany()
+                .HasForeignKey(o => o.GuestId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(o => o.Reservation)
+                .WithMany()
+                .HasForeignKey(o => o.ReservationId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<OrderItem>(entity =>
+        {
+            entity.ToTable("order_items");
+            entity.HasKey(i => i.Id);
+
+            entity.Property(i => i.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(i => i.OrderId).HasColumnName("order_id").IsRequired();
+            entity.Property(i => i.MenuItemId).HasColumnName("menu_item_id").IsRequired();
+            entity.Property(i => i.Quantity).HasColumnName("quantity").IsRequired();
+            entity.Property(i => i.UnitPrice).HasColumnName("unit_price").HasPrecision(10, 2).IsRequired();
+            entity.Property(i => i.LineTotal).HasColumnName("line_total").HasPrecision(10, 2).IsRequired();
+            entity.Property(i => i.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.Property(i => i.UpdatedAt).HasColumnName("updated_at").IsRequired();
+
+            entity.HasOne(i => i.Order)
+                .WithMany(o => o.Items)
+                .HasForeignKey(i => i.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(i => i.MenuItem)
+                .WithMany()
+                .HasForeignKey(i => i.MenuItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("payments");
+            entity.HasKey(p => p.Id);
+
+            entity.Property(p => p.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(p => p.OrderId).HasColumnName("order_id").IsRequired();
+            entity.Property(p => p.PaymentMethod).HasColumnName("payment_method").HasConversion<int>().IsRequired();
+            entity.Property(p => p.Amount).HasColumnName("amount").HasPrecision(10, 2).IsRequired();
+            entity.Property(p => p.ReferenceNumber).HasColumnName("reference_number").HasMaxLength(100).IsRequired();
+            entity.Property(p => p.PaidAt).HasColumnName("paid_at").IsRequired();
+            entity.Property(p => p.CreatedAt).HasColumnName("created_at").IsRequired();
+
+            entity.HasIndex(p => p.ReferenceNumber).IsUnique();
+
+            entity.HasOne(p => p.Order)
+                .WithMany(o => o.Payments)
+                .HasForeignKey(p => p.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

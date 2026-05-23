@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<IMenuCategoryService, MenuCategoryService>();
         services.AddScoped<IMenuItemService, MenuItemService>();
         services.AddScoped<IReservationService, ReservationService>();
+        services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IChatService, ChatService>();
 
         services.AddScoped<IChatTool, GetAvailableTablesTool>();

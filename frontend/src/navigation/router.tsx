@@ -9,6 +9,7 @@ import ProtectedRoute from "../components/guards/ProtectedRoute";
 import AdminRoute from "../components/guards/AdminRoute";
 import MenuManagementPage from "../pages/MenuManagementPage";
 import MenuBrowsePage from "../pages/MenuBrowsePage";
+import OrdersPage from "../pages/OrdersPage";
 
 const router = createBrowserRouter([
   {
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
           {
             path: "menu/browse",
             element: <MenuBrowsePage />,
+          },
+          {
+            path: "orders",
+            element: <OrdersPage />,
           },
         ],
       },

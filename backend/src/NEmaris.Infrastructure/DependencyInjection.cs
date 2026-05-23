@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IMenuCategoryRepository, MenuCategoryRepository>();
         services.AddScoped<IMenuItemRepository, MenuItemRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
 
         services.Configure<OllamaOptions>(config.GetSection(OllamaOptions.SectionName));
         services.AddHttpClient<IOllamaClient, OllamaClient>();

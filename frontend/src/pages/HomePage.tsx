@@ -11,6 +11,7 @@ export default function HomePage() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -20,6 +21,10 @@ export default function HomePage() {
         const nextFloors = await tableService.getFloors();
         if (!ignore) {
           setFloors(nextFloors);
+          // Keep selected floor in sync with refreshed data
+          setSelectedFloor((prev) =>
+            prev ? (nextFloors.find((f) => f.id === prev.id) ?? null) : null,
+          );
           setError(null);
         }
       } catch {
@@ -38,7 +43,7 @@ export default function HomePage() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div className="h-full rounded-lg border border-border bg-background p-6">
@@ -58,6 +63,7 @@ export default function HomePage() {
         <TablePicker
           floor={selectedFloor}
           onBack={() => setSelectedFloor(null)}
+          onTableStatusChange={() => setRefreshKey((k) => k + 1)}
         />
       ) : (
         <FloorSelector
