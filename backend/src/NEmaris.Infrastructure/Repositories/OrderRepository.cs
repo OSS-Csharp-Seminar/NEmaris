@@ -37,7 +37,7 @@ public class OrderRepository : IOrderRepository
             .Include(o => o.Items).ThenInclude(i => i.MenuItem)
             .FirstOrDefaultAsync(o => o.TableId == tableId && o.Status == OrderStatus.Open);
 
-    public async Task<IReadOnlyList<Order>> GetOrdersAsync(OrderStatus? status = null)
+    public async Task<IReadOnlyList<Order>> GetOrdersAsync(OrderStatus? status = null, DateTime? from = null, DateTime? to = null)
     {
         var query = _db.Orders
             .Include(o => o.Table)
@@ -48,8 +48,25 @@ public class OrderRepository : IOrderRepository
         if (status.HasValue)
             query = query.Where(o => o.Status == status.Value);
 
+        if (from.HasValue)
+            query = query.Where(o => o.OpenedAt >= from.Value);
+
+        if (to.HasValue)
+            query = query.Where(o => o.OpenedAt < to.Value);
+
         return await query
             .OrderByDescending(o => o.OpenedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<Order>> GetOrdersForStatsAsync(DateTime from, DateTime to)
+    {
+        return await _db.Orders
+            .Include(o => o.Waiter)
+            .Include(o => o.Items).ThenInclude(i => i.MenuItem)
+            .Include(o => o.Payments)
+            .Where(o => o.OpenedAt >= from && o.OpenedAt < to)
+            .Where(o => o.Status == OrderStatus.Closed)
             .ToListAsync();
     }
 

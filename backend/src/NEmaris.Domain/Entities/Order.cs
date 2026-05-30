@@ -14,6 +14,8 @@ public class Order
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Unpaid;
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }
+    public decimal TaxRate { get; set; }
+    public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
     public DateTime OpenedAt { get; set; }
     public DateTime? ClosedAt { get; set; }

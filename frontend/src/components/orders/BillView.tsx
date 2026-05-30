@@ -9,13 +9,25 @@ interface Props {
 export default function BillView({ bill, onPay, paying }: Props) {
   const isPaid = bill.status === "closed" || bill.paymentStatus === "paid";
 
+  const openedAt = new Date(bill.openedAt);
+  const issuedAt = bill.closedAt ? new Date(bill.closedAt) : openedAt;
+  const taxPct = (bill.taxRate ?? 0) * 100;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-lg border border-border bg-card">
-        <div className="border-b border-border px-4 py-3">
-          <p className="text-xs text-muted-foreground">{bill.orderNumber}</p>
-          <p className="text-sm font-medium text-card-foreground">
+        <div className="border-b border-border px-4 py-3 text-center">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            Račun br.
+          </p>
+          <p className="font-mono text-base font-semibold tracking-wide text-card-foreground">
+            {bill.orderNumber}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Stol {bill.tableNumber} · {bill.waiterName}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {issuedAt.toLocaleString("hr-HR")}
           </p>
         </div>
 
@@ -40,13 +52,25 @@ export default function BillView({ bill, onPay, paying }: Props) {
         )}
 
         <div className="space-y-1 border-t border-border px-4 py-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Osnovica</span>
+            <span className="text-card-foreground">{bill.subtotal.toFixed(2)} €</span>
+          </div>
           {bill.discountAmount > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Popust</span>
               <span className="text-card-foreground">-{bill.discountAmount.toFixed(2)} €</span>
             </div>
           )}
-          <div className="flex justify-between text-base font-semibold">
+          {bill.taxAmount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">
+                PDV ({taxPct.toFixed(taxPct % 1 === 0 ? 0 : 2)}%)
+              </span>
+              <span className="text-card-foreground">{bill.taxAmount.toFixed(2)} €</span>
+            </div>
+          )}
+          <div className="mt-1 flex justify-between border-t border-border pt-2 text-base font-semibold">
             <span className="text-card-foreground">Ukupno</span>
             <span className="text-primary">{bill.totalAmount.toFixed(2)} €</span>
           </div>

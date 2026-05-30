@@ -7,7 +7,8 @@ public interface IOrderService
     Task<OrderDto> CreateOrderAsync(CreateOrderDto dto, string waiterUserId);
     Task<OrderDto?> GetOrderAsync(long id);
     Task<OrderDto?> GetOpenOrderByTableIdAsync(long tableId);
-    Task<IReadOnlyList<OrderDto>> GetOrdersAsync(string? status = null);
+    Task<IReadOnlyList<OrderDto>> GetOrdersAsync(string? status = null, bool todayOnly = true);
+    Task<DailyStatsDto> GetTodayStatsAsync();
     Task<OrderItemDto> AddOrderItemAsync(long orderId, AddOrderItemDto dto);
     Task<OrderItemDto> UpdateOrderItemAsync(long orderId, long itemId, UpdateOrderItemDto dto);
     Task RemoveOrderItemAsync(long orderId, long itemId);

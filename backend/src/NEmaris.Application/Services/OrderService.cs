@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using NEmaris.Application.DTOs;
 using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
@@ -5,13 +6,21 @@ using NEmaris.Domain.Enums;
 
 namespace NEmaris.Application.Services;
 
+public class TaxOptions
+{
+    public const string SectionName = "Tax";
+    public decimal Rate { get; set; } = 0.20m;
+}
+
 public class OrderService : IOrderService
 {
     private readonly IOrderRepository _repo;
+    private readonly decimal _taxRate;
 
-    public OrderService(IOrderRepository repo)
+    public OrderService(IOrderRepository repo, IOptions<TaxOptions> taxOptions)
     {
         _repo = repo;
+        _taxRate = Math.Clamp(taxOptions.Value.Rate, 0m, 1m);
     }
 
     public async Task<OrderDto> CreateOrderAsync(CreateOrderDto dto, string waiterUserId)
@@ -29,6 +38,7 @@ public class OrderService : IOrderService
             ReservationId = dto.ReservationId,
             Status = OrderStatus.Open,
             PaymentStatus = PaymentStatus.Unpaid,
+            TaxRate = _taxRate,
             OpenedAt = DateTime.UtcNow,
         };
 
@@ -41,22 +51,35 @@ public class OrderService : IOrderService
     public async Task<OrderDto?> GetOrderAsync(long id)
     {
         var order = await _repo.GetByIdAsync(id);
-        return order is null ? null : MapToOrderDto(order);
+        if (order is null) return null;
+        ApplyTax(order);
+        return MapToOrderDto(order);
     }
 
     public async Task<OrderDto?> GetOpenOrderByTableIdAsync(long tableId)
     {
         var order = await _repo.GetOpenOrderByTableIdAsync(tableId);
-        return order is null ? null : MapToOrderDto(order);
+        if (order is null) return null;
+        ApplyTax(order);
+        return MapToOrderDto(order);
     }
 
-    public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync(string? status = null)
+    public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync(string? status = null, bool todayOnly = true)
     {
         OrderStatus? parsed = null;
         if (status is not null && Enum.TryParse<OrderStatus>(status, true, out var s))
             parsed = s;
 
-        var orders = await _repo.GetOrdersAsync(parsed);
+        DateTime? from = null, to = null;
+        if (todayOnly)
+        {
+            var todayStart = DateTime.UtcNow.Date;
+            from = todayStart;
+            to = todayStart.AddDays(1);
+        }
+
+        var orders = await _repo.GetOrdersAsync(parsed, from, to);
+        foreach (var o in orders) ApplyTax(o);
         return orders.Select(MapToOrderDto).ToList();
     }
 
@@ -125,6 +148,7 @@ public class OrderService : IOrderService
         var order = await _repo.GetBillAsync(orderId)
             ?? throw new KeyNotFoundException($"Order {orderId} not found.");
 
+        ApplyTax(order);
         return MapToBillDto(order);
     }
 
@@ -135,6 +159,8 @@ public class OrderService : IOrderService
 
         if (order.Status != OrderStatus.Open)
             throw new InvalidOperationException("Cannot process payment for a non-open order.");
+
+        ApplyTax(order);
 
         if (dto.Amount < order.TotalAmount)
             throw new InvalidOperationException(
@@ -159,6 +185,7 @@ public class OrderService : IOrderService
         await _repo.UpdateTableStatusAsync(order.TableId, TableStatus.Available);
 
         var bill = await _repo.GetBillAsync(orderId);
+        ApplyTax(bill!);
         return MapToBillDto(bill!);
     }
 
@@ -176,6 +203,78 @@ public class OrderService : IOrderService
         await _repo.UpdateTableStatusAsync(order.TableId, TableStatus.Available);
 
         return MapToOrderDto(order);
+    }
+
+    public async Task<DailyStatsDto> GetTodayStatsAsync()
+    {
+        var todayStart = DateTime.UtcNow.Date;
+        var tomorrow = todayStart.AddDays(1);
+
+        var orders = await _repo.GetOrdersForStatsAsync(todayStart, tomorrow);
+        foreach (var o in orders) ApplyTax(o);
+
+        var subtotal = orders.Sum(o => o.Subtotal - o.DiscountAmount);
+        var tax = orders.Sum(o => o.TaxAmount);
+        var revenue = orders.Sum(o => o.TotalAmount);
+
+        var byPaymentMethod = orders
+            .SelectMany(o => o.Payments)
+            .GroupBy(p => p.PaymentMethod)
+            .Select(g => new PaymentMethodTotalDto
+            {
+                PaymentMethod = g.Key.ToString().ToLower(),
+                Amount = g.Sum(p => p.Amount),
+                Count = g.Count(),
+            })
+            .OrderByDescending(x => x.Amount)
+            .ToList();
+
+        var topItems = orders
+            .SelectMany(o => o.Items)
+            .GroupBy(i => new { i.MenuItemId, Name = i.MenuItem?.Name ?? string.Empty })
+            .Select(g => new TopItemDto
+            {
+                MenuItemId = g.Key.MenuItemId,
+                MenuItemName = g.Key.Name,
+                Quantity = g.Sum(i => i.Quantity),
+                Revenue = g.Sum(i => i.LineTotal),
+            })
+            .OrderByDescending(x => x.Quantity)
+            .Take(10)
+            .ToList();
+
+        var byWaiter = orders
+            .GroupBy(o => new { o.WaiterUserId, Name = o.Waiter?.FullName ?? string.Empty })
+            .Select(g => new WaiterTotalDto
+            {
+                WaiterUserId = g.Key.WaiterUserId,
+                WaiterName = g.Key.Name,
+                BillCount = g.Count(),
+                Revenue = g.Sum(o => o.TotalAmount),
+            })
+            .OrderByDescending(x => x.Revenue)
+            .ToList();
+
+        return new DailyStatsDto
+        {
+            Date = todayStart,
+            BillCount = orders.Count,
+            Revenue = revenue,
+            TaxCollected = tax,
+            Subtotal = subtotal,
+            ByPaymentMethod = byPaymentMethod,
+            TopItems = topItems,
+            ByWaiter = byWaiter,
+        };
+    }
+
+    private void ApplyTax(Order o)
+    {
+        var rate = o.TaxRate > 0 ? o.TaxRate : _taxRate;
+        var afterDiscount = Math.Max(o.Subtotal - o.DiscountAmount, 0m);
+        o.TaxRate = rate;
+        o.TaxAmount = Math.Round(afterDiscount * rate, 2, MidpointRounding.AwayFromZero);
+        o.TotalAmount = afterDiscount + o.TaxAmount;
     }
 
     private static string GenerateOrderNumber()
@@ -198,6 +297,8 @@ public class OrderService : IOrderService
         PaymentStatus = o.PaymentStatus.ToString().ToLower(),
         Subtotal = o.Subtotal,
         DiscountAmount = o.DiscountAmount,
+        TaxRate = o.TaxRate,
+        TaxAmount = o.TaxAmount,
         TotalAmount = o.TotalAmount,
         OpenedAt = o.OpenedAt,
         ClosedAt = o.ClosedAt,
@@ -225,6 +326,8 @@ public class OrderService : IOrderService
         Items = o.Items.Select(MapToOrderItemDto).ToList(),
         Subtotal = o.Subtotal,
         DiscountAmount = o.DiscountAmount,
+        TaxRate = o.TaxRate,
+        TaxAmount = o.TaxAmount,
         TotalAmount = o.TotalAmount,
         Payments = o.Payments.Select(p => new PaymentDto
         {

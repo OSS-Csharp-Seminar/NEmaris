@@ -6,6 +6,7 @@ import type {
   CreateOrderPayload,
   AddOrderItemPayload,
   CreatePaymentPayload,
+  DailyStats,
 } from "../types/order";
 
 const orderService = {
@@ -14,10 +15,15 @@ const orderService = {
     return data;
   },
 
-  async getOrders(status?: string): Promise<Order[]> {
-    const { data } = await api.get<Order[]>("/orders", {
-      params: status ? { status } : undefined,
-    });
+  async getOrders(status?: string, todayOnly: boolean = true): Promise<Order[]> {
+    const params: Record<string, string | boolean> = { todayOnly };
+    if (status) params.status = status;
+    const { data } = await api.get<Order[]>("/orders", { params });
+    return data;
+  },
+
+  async getTodayStats(): Promise<DailyStats> {
+    const { data } = await api.get<DailyStats>("/orders/stats/today");
     return data;
   },
 

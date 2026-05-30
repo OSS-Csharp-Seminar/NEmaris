@@ -176,6 +176,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(o => o.PaymentStatus).HasColumnName("payment_status").HasConversion<int>().IsRequired();
             entity.Property(o => o.Subtotal).HasColumnName("subtotal").HasPrecision(10, 2).IsRequired();
             entity.Property(o => o.DiscountAmount).HasColumnName("discount_amount").HasPrecision(10, 2).IsRequired();
+            entity.Property(o => o.TaxRate).HasColumnName("tax_rate").HasPrecision(5, 4).IsRequired();
+            entity.Property(o => o.TaxAmount).HasColumnName("tax_amount").HasPrecision(10, 2).IsRequired();
             entity.Property(o => o.TotalAmount).HasColumnName("total_amount").HasPrecision(10, 2).IsRequired();
             entity.Property(o => o.OpenedAt).HasColumnName("opened_at").IsRequired();
             entity.Property(o => o.ClosedAt).HasColumnName("closed_at");

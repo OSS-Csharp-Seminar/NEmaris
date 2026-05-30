@@ -27,6 +27,8 @@ public class OrderDto
     public string PaymentStatus { get; set; } = string.Empty;
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }
+    public decimal TaxRate { get; set; }
+    public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
     public DateTime OpenedAt { get; set; }
     public DateTime? ClosedAt { get; set; }
@@ -72,10 +74,47 @@ public class BillDto
     public List<OrderItemDto> Items { get; set; } = [];
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }
+    public decimal TaxRate { get; set; }
+    public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
     public List<PaymentDto> Payments { get; set; } = [];
     public DateTime OpenedAt { get; set; }
     public DateTime? ClosedAt { get; set; }
+}
+
+public class DailyStatsDto
+{
+    public DateTime Date { get; set; }
+    public int BillCount { get; set; }
+    public decimal Revenue { get; set; }
+    public decimal TaxCollected { get; set; }
+    public decimal Subtotal { get; set; }
+    public List<PaymentMethodTotalDto> ByPaymentMethod { get; set; } = [];
+    public List<TopItemDto> TopItems { get; set; } = [];
+    public List<WaiterTotalDto> ByWaiter { get; set; } = [];
+}
+
+public class PaymentMethodTotalDto
+{
+    public string PaymentMethod { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public int Count { get; set; }
+}
+
+public class TopItemDto
+{
+    public long MenuItemId { get; set; }
+    public string MenuItemName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal Revenue { get; set; }
+}
+
+public class WaiterTotalDto
+{
+    public string WaiterUserId { get; set; } = string.Empty;
+    public string WaiterName { get; set; } = string.Empty;
+    public int BillCount { get; set; }
+    public decimal Revenue { get; set; }
 }
 
 public class CreatePaymentDto

@@ -8,7 +8,8 @@ public interface IOrderRepository
     Task<Order?> GetByIdAsync(long id);
     Task<Order?> GetBillAsync(long id);
     Task<Order?> GetOpenOrderByTableIdAsync(long tableId);
-    Task<IReadOnlyList<Order>> GetOrdersAsync(OrderStatus? status = null);
+    Task<IReadOnlyList<Order>> GetOrdersAsync(OrderStatus? status = null, DateTime? from = null, DateTime? to = null);
+    Task<IReadOnlyList<Order>> GetOrdersForStatsAsync(DateTime from, DateTime to);
     Task<Order> AddOrderAsync(Order order);
     Task UpdateOrderAsync(Order order);
     Task<OrderItem> AddOrderItemAsync(OrderItem item);

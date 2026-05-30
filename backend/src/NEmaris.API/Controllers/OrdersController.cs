@@ -34,10 +34,19 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetOrders([FromQuery] string? status = null)
+    public async Task<IActionResult> GetOrders(
+        [FromQuery] string? status = null,
+        [FromQuery] bool todayOnly = true)
     {
-        var orders = await _service.GetOrdersAsync(status);
+        var orders = await _service.GetOrdersAsync(status, todayOnly);
         return Ok(orders);
+    }
+
+    [HttpGet("stats/today")]
+    public async Task<IActionResult> GetTodayStats()
+    {
+        var stats = await _service.GetTodayStatsAsync();
+        return Ok(stats);
     }
 
     [HttpGet("{id:long}")]

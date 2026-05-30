@@ -29,6 +29,8 @@ export interface Order {
   paymentStatus: "unpaid" | "paid" | "partiallypaid" | "voided";
   subtotal: number;
   discountAmount: number;
+  taxRate: number;
+  taxAmount: number;
   totalAmount: number;
   openedAt: string;
   closedAt?: string;
@@ -45,10 +47,43 @@ export interface Bill {
   items: OrderItem[];
   subtotal: number;
   discountAmount: number;
+  taxRate: number;
+  taxAmount: number;
   totalAmount: number;
   payments: PaymentRecord[];
   openedAt: string;
   closedAt?: string;
+}
+
+export interface PaymentMethodTotal {
+  paymentMethod: string;
+  amount: number;
+  count: number;
+}
+
+export interface TopItem {
+  menuItemId: number;
+  menuItemName: string;
+  quantity: number;
+  revenue: number;
+}
+
+export interface WaiterTotal {
+  waiterUserId: string;
+  waiterName: string;
+  billCount: number;
+  revenue: number;
+}
+
+export interface DailyStats {
+  date: string;
+  billCount: number;
+  revenue: number;
+  taxCollected: number;
+  subtotal: number;
+  byPaymentMethod: PaymentMethodTotal[];
+  topItems: TopItem[];
+  byWaiter: WaiterTotal[];
 }
 
 export interface CreateOrderPayload {

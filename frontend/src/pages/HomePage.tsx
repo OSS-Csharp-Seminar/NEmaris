@@ -47,13 +47,19 @@ export default function HomePage() {
 
   return (
     <div className="h-full rounded-lg border border-border bg-background p-6">
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-3">
         <Link
-        to="/menu"
-        className="rounded-xl bg-black px-6 py-3 text-white font-medium transition-opacity hover:opacity-80"
-      >
-        Open Menu Management
-      </Link>
+          to="/cash-register"
+          className="rounded-xl border border-border bg-card px-6 py-3 font-medium text-card-foreground transition-opacity hover:opacity-80"
+        >
+          Kasa
+        </Link>
+        <Link
+          to="/menu"
+          className="rounded-xl bg-black px-6 py-3 text-white font-medium transition-opacity hover:opacity-80"
+        >
+          Open Menu Management
+        </Link>
       </div>
       {isLoading ? (
         <PageState title="Ucitavanje stolova" />

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NEmaris.Application.Configuration;
 using NEmaris.Application.Interfaces;
+using NEmaris.Application.Services;
 using NEmaris.Domain.Entities;
 using NEmaris.Infrastructure.Persistence;
 using NEmaris.Infrastructure.Repositories;
@@ -43,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderRepository, OrderRepository>();
 
         services.Configure<OllamaOptions>(config.GetSection(OllamaOptions.SectionName));
+        services.Configure<TaxOptions>(config.GetSection(TaxOptions.SectionName));
         services.AddHttpClient<IOllamaClient, OllamaClient>();
 
         return services;
