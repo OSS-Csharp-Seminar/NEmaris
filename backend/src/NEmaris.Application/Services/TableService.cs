@@ -1,16 +1,19 @@
 using NEmaris.Application.DTOs;
 using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
+using NEmaris.Domain.Enums;
 
 namespace NEmaris.Application.Services;
 
 public class TableService : ITableService
 {
     private readonly ITableRepository _tableRepository;
+    private readonly IOrderService _orderService;
 
-    public TableService(ITableRepository tableRepository)
+    public TableService(ITableRepository tableRepository, IOrderService orderService)
     {
         _tableRepository = tableRepository;
+        _orderService = orderService;
     }
 
     public async Task<IReadOnlyList<TableDto>> GetAllAsync()
@@ -38,6 +41,7 @@ public class TableService : ITableService
         {
             TableNumber = dto.TableNumber,
             Capacity = dto.Capacity,
+            GuestCount = 0,
             Zone = dto.Zone,
             Status = dto.Status,
             Floor = dto.Floor,
@@ -77,6 +81,62 @@ public class TableService : ITableService
         await _tableRepository.UpdateAsync(table);
     }
 
+    public async Task<TableDto> ChangeGuestCountAsync(long id, int change)
+    {
+        if (change is not (-1 or 1))
+            throw new InvalidOperationException("Guest count can only be changed by one person at a time.");
+
+        var table = await _tableRepository.GetByIdAsync(id);
+        if (table is null)
+            throw new KeyNotFoundException("Table not found.");
+
+        var nextGuestCount = table.GuestCount + change;
+        if (nextGuestCount < 0)
+            throw new InvalidOperationException("Guest count cannot be less than zero.");
+
+        if (nextGuestCount > table.Capacity)
+            throw new InvalidOperationException("Guest count cannot exceed table capacity.");
+
+        table.GuestCount = nextGuestCount;
+        table.Status = nextGuestCount == 0
+            ? TableStatus.Available
+            : table.Status == TableStatus.Seated
+                ? TableStatus.Seated
+                : TableStatus.Reserved;
+        table.UpdatedAt = DateTime.UtcNow;
+
+        await _tableRepository.UpdateAsync(table);
+        return MapToDto(table);
+    }
+
+    public async Task<TableDto> MarkOccupiedAsync(long id, string waiterUserId)
+    {
+        var table = await _tableRepository.GetByIdAsync(id);
+        if (table is null)
+            throw new KeyNotFoundException("Table not found.");
+
+        if (table.Status != TableStatus.Reserved || table.GuestCount == 0)
+            throw new InvalidOperationException("Only a reserved table with guests can be marked as occupied.");
+
+        table.Status = TableStatus.Seated;
+        table.UpdatedAt = DateTime.UtcNow;
+
+        await _tableRepository.UpdateAsync(table);
+        try
+        {
+            await _orderService.CreateOrderAsync(new CreateOrderDto { TableId = id }, waiterUserId);
+        }
+        catch
+        {
+            table.Status = TableStatus.Reserved;
+            table.UpdatedAt = DateTime.UtcNow;
+            await _tableRepository.UpdateAsync(table);
+            throw;
+        }
+
+        return MapToDto(table);
+    }
+
     public async Task DeleteTableAsync(long id)
     {
         var table = await _tableRepository.GetByIdAsync(id);
@@ -93,6 +153,7 @@ public class TableService : ITableService
             Id = table.Id,
             TableNumber = table.TableNumber,
             Capacity = table.Capacity,
+            GuestCount = table.GuestCount,
             Zone = table.Zone,
             Status = table.Status,
             Floor = table.Floor,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import orderService from "../services/orderService";
 import type { Order } from "../types/order";
 import OrderPanel from "../components/orders/OrderPanel";
@@ -43,7 +44,13 @@ export default function OrdersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">Narudžbe</h1>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/home"
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-secondary"
+          >
+            Natrag na stolove
+          </Link>
           {["open", "closed", "cancelled", ""].map((s) => (
             <button
               key={s || "all"}

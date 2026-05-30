@@ -95,6 +95,7 @@ app.MapGet("/api/table-layout/tables", async (AppDbContext db) =>
             table.Id,
             table.TableNumber,
             table.Capacity,
+            table.GuestCount,
             table.Zone,
             Status = (int)table.Status,
             table.Floor,
@@ -118,6 +119,7 @@ using (var scope = app.Services.CreateScope())
 
     // Make sure tables exist
     await db.Database.EnsureCreatedAsync();
+    await EnsureTableGuestCountColumnAsync(db);
 
     if (await userManager.FindByEmailAsync("admin@nemaris.com") is null)
     {
@@ -146,6 +148,43 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+static async Task EnsureTableGuestCountColumnAsync(AppDbContext db)
+{
+    const string columnExistsSql = """
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'restaurant_tables'
+          AND column_name = 'guest_count'
+        """;
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = columnExistsSql;
+        var columnExists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+
+        if (!columnExists)
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                ALTER TABLE restaurant_tables
+                ADD COLUMN guest_count INT NOT NULL DEFAULT 0 AFTER capacity
+                """);
+        }
+
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE restaurant_tables
+            SET guest_count = 1
+            WHERE guest_count = 0 AND status IN (1, 2)
+            """);
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
 
 static string ResolveJwtKey(IConfiguration configuration, IHostEnvironment environment)
 {

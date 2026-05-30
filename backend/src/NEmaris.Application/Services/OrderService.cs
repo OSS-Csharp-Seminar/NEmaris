@@ -20,6 +20,12 @@ public class OrderService : IOrderService
         if (existing != null)
             throw new InvalidOperationException($"Table already has an open order ({existing.OrderNumber}).");
 
+        var table = await _repo.GetTableByIdAsync(dto.TableId)
+            ?? throw new KeyNotFoundException($"Table {dto.TableId} not found.");
+
+        if (table.Status != TableStatus.Seated)
+            throw new InvalidOperationException("An order can only be opened for an occupied table.");
+
         var order = new Order
         {
             OrderNumber = GenerateOrderNumber(),

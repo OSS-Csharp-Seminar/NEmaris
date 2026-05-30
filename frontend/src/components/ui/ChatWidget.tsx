@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import chatService, { type ChatMessage } from "../../services/chatService";
 
-export default function ChatWidget() {
-  const [open, setOpen] = useState(false);
+interface ChatWidgetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,16 +63,7 @@ export default function ChatWidget() {
   };
 
   if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Open reservations chat"
-        className="fixed bottom-6 right-6 z-50 rounded-full bg-primary px-5 py-3 font-medium text-primary-foreground shadow-lg transition-opacity hover:opacity-90"
-      >
-        Chat
-      </button>
-    );
+    return null;
   }
 
   return (
@@ -77,7 +72,7 @@ export default function ChatWidget() {
         <span className="font-medium">Reservations</span>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => onOpenChange(false)}
           aria-label="Close chat"
           className="text-muted-foreground hover:text-foreground"
         >

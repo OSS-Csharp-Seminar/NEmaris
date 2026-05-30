@@ -40,7 +40,7 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg flex flex-col items-center pt-24">
+    <div className="flex w-full max-w-md flex-1 flex-col items-center rounded-2xl bg-white p-8 pt-28 shadow-lg">
       <h2 className="mb-2 text-2xl font-bold text-gray-800">Welcome</h2>
       <p className="mb-6 text-sm text-gray-500">
         Sign in to continue to your account

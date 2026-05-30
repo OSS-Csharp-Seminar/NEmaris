@@ -42,6 +42,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(t => t.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(t => t.TableNumber).HasColumnName("table_number").HasMaxLength(20).IsRequired();
             entity.Property(t => t.Capacity).HasColumnName("capacity").IsRequired();
+            entity.Property(t => t.GuestCount).HasColumnName("guest_count").IsRequired();
             entity.Property(t => t.Zone).HasColumnName("zone").HasMaxLength(100);
             entity.Property(t => t.Status).HasColumnName("status").HasConversion<int>().IsRequired();
             entity.Property(t => t.Floor).HasColumnName("floor").IsRequired();

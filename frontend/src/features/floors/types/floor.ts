@@ -4,6 +4,7 @@ export interface RestaurantTable {
   id: string;
   name: string;
   capacity: number;
+  guestCount: number;
   status: TableStatus;
   x: number;
   y: number;
@@ -21,6 +22,7 @@ export interface ApiRestaurantTable {
   id: number;
   tableNumber: string;
   capacity: number;
+  guestCount?: number;
   zone?: string | null;
   status: number;
   floor?: number;

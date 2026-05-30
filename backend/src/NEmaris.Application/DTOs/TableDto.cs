@@ -7,6 +7,7 @@ public class TableDto
     public long Id { get; set; }
     public string TableNumber { get; set; } = string.Empty;
     public int Capacity { get; set; }
+    public int GuestCount { get; set; }
     public string? Zone { get; set; }
     public TableStatus Status { get; set; }
     public int Floor { get; set; }
