@@ -26,6 +26,7 @@ public class MenuItemService : IMenuItemService
             Price = m.Price,
             Status = (int)m.Status,
             IsAvailable = m.IsAvailable,
+            StockQuantity = m.StockQuantity,
             Sku = m.Sku,
             CreatedAt = m.CreatedAt,
             UpdatedAt = m.UpdatedAt
@@ -46,6 +47,7 @@ public class MenuItemService : IMenuItemService
             Price = item.Price,
             Status = (int)item.Status,
             IsAvailable = item.IsAvailable,
+            StockQuantity = item.StockQuantity,
             Sku = item.Sku,
             CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt
@@ -62,6 +64,7 @@ public class MenuItemService : IMenuItemService
             Price = dto.Price,
             Status = dto.Status,
             IsAvailable = dto.IsAvailable,
+            StockQuantity = dto.StockQuantity,
             Sku = dto.Sku,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -83,6 +86,7 @@ public class MenuItemService : IMenuItemService
         item.Price = dto.Price;
         item.Status = dto.Status;
         item.IsAvailable = dto.IsAvailable;
+        item.StockQuantity = dto.StockQuantity;
         item.Sku = dto.Sku;
         item.UpdatedAt = DateTime.UtcNow;
 

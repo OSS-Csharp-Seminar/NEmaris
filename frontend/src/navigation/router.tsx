@@ -34,10 +34,6 @@ const router = createBrowserRouter([
             element: <HomePage />,
           },
           {
-            path: "menu",
-            element: <MenuManagementPage />,
-          },
-          {
             path: "menu/browse",
             element: <MenuBrowsePage />,
           },
@@ -55,6 +51,10 @@ const router = createBrowserRouter([
       {
         element: <AdminRoute />,
         children: [
+          {
+            path: "menu",
+            element: <MenuManagementPage />,
+          },
           {
             path: "register",
             element: <RegisterPage />,

@@ -7,8 +7,10 @@ import tableService from "../features/floors/services/tableService";
 import orderService from "../services/orderService";
 import type { RestaurantFloor } from "../features/floors/types/floor";
 import type { Order } from "../types/order";
+import { useAuth } from "../context/useAuth";
 
 export default function HomePage() {
+  const { isAdmin } = useAuth();
   const [floors, setFloors] = useState<RestaurantFloor[]>([]);
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
   const [selectedFloor, setSelectedFloor] = useState<RestaurantFloor | null>(
@@ -66,12 +68,14 @@ export default function HomePage() {
         >
           Kasa
         </Link>
-        <Link
-          to="/menu"
-          className="rounded-xl bg-black px-6 py-3 font-medium text-white transition-opacity hover:opacity-80"
-        >
-          Open Menu Management
-        </Link>
+        {isAdmin && (
+          <Link
+            to="/menu"
+            className="rounded-xl bg-black px-6 py-3 font-medium text-white transition-opacity hover:opacity-80"
+          >
+            Upravljanje menijem
+          </Link>
+        )}
       </div>
 
       <div className="min-h-0 flex-1">

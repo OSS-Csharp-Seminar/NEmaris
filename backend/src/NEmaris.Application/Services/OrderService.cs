@@ -124,11 +124,12 @@ public class OrderService : IOrderService
         if (item.OrderId != orderId)
             throw new InvalidOperationException("Item does not belong to this order.");
 
+        var previousQuantity = item.Quantity;
         item.Quantity = dto.Quantity;
         item.LineTotal = item.UnitPrice * dto.Quantity;
         item.UpdatedAt = DateTime.UtcNow;
 
-        await _repo.UpdateOrderItemAsync(item);
+        await _repo.UpdateOrderItemAsync(item, previousQuantity);
         return MapToOrderItemDto(item);
     }
 

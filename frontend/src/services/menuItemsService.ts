@@ -8,6 +8,7 @@ export interface MenuItem {
   price: number;
   status: number;
   isAvailable: boolean;
+  stockQuantity: number;
   sku?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -20,6 +21,7 @@ export interface CreateMenuItemRequest {
   price: number;
   status: number;
   isAvailable: boolean;
+  stockQuantity: number;
   sku?: string;
 }
 
@@ -30,6 +32,7 @@ export interface UpdateMenuItemRequest {
   price: number;
   status: number;
   isAvailable: boolean;
+  stockQuantity: number;
   sku?: string;
 }
 

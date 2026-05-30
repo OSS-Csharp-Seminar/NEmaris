@@ -15,7 +15,7 @@ export default function MenuItemList({
   if (items.length === 0) {
     return (
       <p className="text-sm text-gray-500">
-        No menu items in this category.
+        Nema stavki menija u ovoj kategoriji.
       </p>
     );
   }

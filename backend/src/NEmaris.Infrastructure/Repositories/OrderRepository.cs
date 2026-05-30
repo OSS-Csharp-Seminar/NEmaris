@@ -99,10 +99,16 @@ public class OrderRepository : IOrderRepository
         if (!menuItem.IsAvailable)
             throw new InvalidOperationException($"'{menuItem.Name}' is not available.");
 
+        if (menuItem.StockQuantity < item.Quantity)
+            throw new InvalidOperationException($"Only {menuItem.StockQuantity} units of '{menuItem.Name}' are available.");
+
         // Merge with existing line if same item already on this order
         var existing = await _db.OrderItems
             .Include(i => i.MenuItem)
             .FirstOrDefaultAsync(i => i.OrderId == item.OrderId && i.MenuItemId == item.MenuItemId);
+
+        menuItem.StockQuantity -= item.Quantity;
+        menuItem.UpdatedAt = DateTime.UtcNow;
 
         if (existing is not null)
         {
@@ -128,14 +134,31 @@ public class OrderRepository : IOrderRepository
             .Include(i => i.MenuItem)
             .FirstOrDefaultAsync(i => i.Id == itemId);
 
-    public async Task UpdateOrderItemAsync(OrderItem item)
+    public async Task UpdateOrderItemAsync(OrderItem item, int previousQuantity)
     {
+        var menuItem = await _db.MenuItems.FindAsync(item.MenuItemId)
+            ?? throw new KeyNotFoundException($"Menu item {item.MenuItemId} not found.");
+
+        var quantityDelta = item.Quantity - previousQuantity;
+        if (quantityDelta > 0 && menuItem.StockQuantity < quantityDelta)
+            throw new InvalidOperationException($"Only {menuItem.StockQuantity} additional units of '{menuItem.Name}' are available.");
+
+        menuItem.StockQuantity -= quantityDelta;
+        menuItem.UpdatedAt = DateTime.UtcNow;
+
         _db.OrderItems.Update(item);
         await _db.SaveChangesAsync();
     }
 
     public async Task RemoveOrderItemAsync(OrderItem item)
     {
+        var menuItem = await _db.MenuItems.FindAsync(item.MenuItemId);
+        if (menuItem is not null)
+        {
+            menuItem.StockQuantity += item.Quantity;
+            menuItem.UpdatedAt = DateTime.UtcNow;
+        }
+
         _db.OrderItems.Remove(item);
         await _db.SaveChangesAsync();
     }

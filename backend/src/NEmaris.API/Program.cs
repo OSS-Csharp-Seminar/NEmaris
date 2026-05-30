@@ -120,6 +120,7 @@ using (var scope = app.Services.CreateScope())
     // Make sure tables exist
     await db.Database.EnsureCreatedAsync();
     await EnsureTableGuestCountColumnAsync(db);
+    await EnsureMenuItemStockQuantityColumnAsync(db);
 
     if (await userManager.FindByEmailAsync("admin@nemaris.com") is null)
     {
@@ -178,6 +179,52 @@ static async Task EnsureTableGuestCountColumnAsync(AppDbContext db)
             UPDATE restaurant_tables
             SET guest_count = 1
             WHERE guest_count = 0 AND status IN (1, 2)
+            """);
+    }
+    finally
+    {
+        await db.Database.CloseConnectionAsync();
+    }
+}
+
+static async Task EnsureMenuItemStockQuantityColumnAsync(AppDbContext db)
+{
+    const string columnExistsSql = """
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'menu_items'
+          AND column_name = 'stock_quantity'
+        """;
+
+    await db.Database.OpenConnectionAsync();
+    try
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = columnExistsSql;
+        var columnExists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+
+        if (!columnExists)
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                ALTER TABLE menu_items
+                ADD COLUMN stock_quantity INT NOT NULL DEFAULT 0 AFTER is_available
+                """);
+        }
+
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE menu_items
+            SET stock_quantity = CASE sku
+                WHEN 'DRK-COL' THEN 24
+                WHEN 'COF-CAP' THEN 30
+                WHEN 'COF-ESP' THEN 40
+                WHEN 'BRK-BEN' THEN 12
+                WHEN 'LCH-WRP' THEN 16
+                WHEN 'DIN-RUMP-WOK' THEN 8
+                ELSE stock_quantity
+            END
+            WHERE sku IN ('DRK-COL', 'COF-CAP', 'COF-ESP', 'BRK-BEN', 'LCH-WRP', 'DIN-RUMP-WOK')
+              AND stock_quantity = 0
             """);
     }
     finally

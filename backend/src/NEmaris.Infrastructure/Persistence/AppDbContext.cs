@@ -86,6 +86,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(m => m.Status).HasColumnName("status").IsRequired();
             entity.Property(m => m.IsAvailable).HasColumnName("is_available").IsRequired();
+            entity.Property(m => m.StockQuantity).HasColumnName("stock_quantity").IsRequired();
             entity.Property(m => m.Sku).HasColumnName("sku");
 
             entity.Property(m => m.CreatedAt).HasColumnName("created_at").IsRequired();

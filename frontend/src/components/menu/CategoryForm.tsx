@@ -31,12 +31,12 @@ export default function CategoryForm({
   return (
     <form onSubmit={onSubmit} className="mb-6 flex flex-col gap-4">
       <h4 className="text-lg font-semibold text-gray-800">
-        {editingCategoryId ? "Edit Category" : "Add Category"}
+        {editingCategoryId ? "Uredi kategoriju" : "Dodaj kategoriju"}
       </h4>
 
       <input
         className={inputClass}
-        placeholder="Category name"
+        placeholder="Naziv kategorije"
         value={name}
         onChange={(e) => onNameChange(e.target.value)}
         required
@@ -44,14 +44,14 @@ export default function CategoryForm({
 
       <input
         className={inputClass}
-        placeholder="Description"
+        placeholder="Opis"
         value={description}
         onChange={(e) => onDescriptionChange(e.target.value)}
       />
 
       <input
         className={inputClass}
-        placeholder="Display order"
+        placeholder="Redoslijed prikaza"
         type="number"
         min="1"
         step="1"
@@ -67,11 +67,11 @@ export default function CategoryForm({
       >
         {isSubmitting
           ? editingCategoryId
-            ? "Updating category..."
-            : "Creating category..."
+            ? "Azuriranje kategorije..."
+            : "Dodavanje kategorije..."
           : editingCategoryId
-          ? "Update Category"
-          : "Create Category"}
+          ? "Azuriraj kategoriju"
+          : "Dodaj kategoriju"}
       </button>
 
       {editingCategoryId && (
@@ -80,7 +80,7 @@ export default function CategoryForm({
           onClick={onCancelEdit}
           className="rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-100"
         >
-          Cancel Edit
+          Odustani od uredjivanja
         </button>
       )}
     </form>

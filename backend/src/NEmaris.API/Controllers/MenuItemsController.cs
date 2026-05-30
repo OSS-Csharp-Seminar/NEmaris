@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using NEmaris.Application.DTOs;
 using NEmaris.Application.Interfaces;
 
@@ -6,6 +7,7 @@ namespace NEmaris.API.Controllers;
 
 [ApiController]
 [Route("api/menu-items")]
+[Authorize]
 public class MenuItemsController : ControllerBase
 {
     private readonly IMenuItemService _menuItemService;
@@ -37,6 +39,7 @@ public class MenuItemsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateMenuItemDto request)
     {
         try
@@ -51,6 +54,7 @@ public class MenuItemsController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateMenuItemDto request)
     {
         try
@@ -69,6 +73,7 @@ public class MenuItemsController : ControllerBase
     }
 
     [HttpDelete("{id:long}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(long id)
     {
         try

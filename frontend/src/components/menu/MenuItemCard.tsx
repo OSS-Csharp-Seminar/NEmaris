@@ -18,11 +18,15 @@ export default function MenuItemCard({
           <h4 className="font-medium text-gray-800">{item.name}</h4>
 
           <p className="text-sm text-gray-500">
-            {item.description || "No description"}
+            {item.description || "Nema opisa"}
           </p>
 
           <p className="text-sm text-gray-400">
-            SKU: {item.sku || "No SKU"}
+            SKU: {item.sku || "Nema SKU"}
+          </p>
+
+          <p className="text-sm text-gray-400">
+            Skladiste: {item.stockQuantity}
           </p>
         </div>
 
@@ -34,7 +38,7 @@ export default function MenuItemCard({
               item.isAvailable ? "text-green-600" : "text-red-600"
             }`}
           >
-            {item.isAvailable ? "Available" : "Unavailable"}
+            {item.isAvailable ? "Dostupno" : "Nedostupno"}
           </span>
           <div className="mt-3">
             <button
@@ -42,14 +46,14 @@ export default function MenuItemCard({
               onClick={() => onEdit(item)}
               className="rounded-lg bg-blue-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
             >
-              Edit
+              Uredi
             </button>
             <button
               type="button"
               onClick={() => onDelete(item.id)}
               className="rounded-lg bg-red-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
             >
-              Delete
+              Obrisi
             </button>
           </div>
         </div>

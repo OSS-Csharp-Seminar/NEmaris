@@ -162,6 +162,7 @@ CREATE TABLE menu_items (
     price           DECIMAL(10,2)   NOT NULL,
     status          INT             NOT NULL,
     is_available    TINYINT(1)      NOT NULL DEFAULT 1,
+    stock_quantity  INT             NOT NULL DEFAULT 0,
     sku             VARCHAR(50)     NULL,
     created_at      DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at      DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -171,7 +172,8 @@ CREATE TABLE menu_items (
     CONSTRAINT fk_menu_items_category
         FOREIGN KEY (category_id) REFERENCES menu_categories(id)
         ON UPDATE CASCADE ON DELETE RESTRICT,
-    CONSTRAINT chk_menu_items_price   CHECK (price >= 0)
+    CONSTRAINT chk_menu_items_price   CHECK (price >= 0),
+    CONSTRAINT chk_menu_items_stock   CHECK (stock_quantity >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

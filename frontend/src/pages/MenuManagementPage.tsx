@@ -28,6 +28,7 @@ export default function MenuManagementPage() {
   const [itemPrice, setItemPrice] = useState(0);
   const [itemSku, setItemSku] = useState("");
   const [itemIsAvailable, setItemIsAvailable] = useState(true);
+  const [itemStockQuantity, setItemStockQuantity] = useState(0);
 
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
@@ -106,7 +107,7 @@ export default function MenuManagementPage() {
         return loadedCategories[0].id;
       });
     } catch {
-      setError("Failed to load menu categories.");
+      setError("Nije moguce ucitati kategorije menija.");
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +120,7 @@ export default function MenuManagementPage() {
 
       setMenuItems(loadedMenuItems);
     } catch {
-      setError("Failed to load menu items.");
+      setError("Nije moguce ucitati stavke menija.");
     }
   };
 
@@ -135,7 +136,7 @@ export default function MenuManagementPage() {
     setMessage(null);
 
     if (!Number.isInteger(displayOrder) || displayOrder < 1) {
-      setError("Menu category display order must be a whole number greater than 0.");
+      setError("Redoslijed kategorije mora biti cijeli broj veci od 0.");
       return;
     }
 
@@ -146,7 +147,7 @@ export default function MenuManagementPage() {
     );
 
     if (displayOrderTaken) {
-      setError(`Display order ${displayOrder} is already used by another menu category.`);
+      setError(`Redoslijed ${displayOrder} vec koristi druga kategorija menija.`);
       return;
     }
 
@@ -160,7 +161,7 @@ export default function MenuManagementPage() {
           displayOrder,
         });
 
-        setMessage("Menu category updated successfully.");
+        setMessage("Kategorija menija uspjesno je azurirana.");
         setSelectedCategoryId(editingCategoryId);
       } else {
         const response = await menuCategoryService.create({
@@ -169,7 +170,7 @@ export default function MenuManagementPage() {
           displayOrder,
         });
 
-        setMessage("Menu category created successfully.");
+        setMessage("Kategorija menija uspjesno je dodana.");
 
         if (response.data.id) {
           setSelectedCategoryId(response.data.id);
@@ -186,8 +187,8 @@ export default function MenuManagementPage() {
     } catch {
       setError(
         editingCategoryId
-          ? "Failed to update menu category."
-          : "Failed to create menu category."
+          ? "Nije moguce azurirati kategoriju menija."
+          : "Nije moguce dodati kategoriju menija."
       );
     } finally {
       setIsSubmitting(false);
@@ -210,6 +211,11 @@ export default function MenuManagementPage() {
     setError(null);
     setMessage(null);
 
+    if (!Number.isInteger(itemStockQuantity) || itemStockQuantity < 0) {
+      setError("Kolicina u skladistu mora biti cijeli broj 0 ili veci.");
+      return;
+    }
+
     try {
       if (editingItemId) {
         await menuItemService.update(editingItemId, {
@@ -219,10 +225,11 @@ export default function MenuManagementPage() {
           price: itemPrice,
           status: 1,
           isAvailable: itemIsAvailable,
+          stockQuantity: itemStockQuantity,
           sku: itemSku || undefined,
         });
 
-        setMessage("Menu item updated successfully.");
+        setMessage("Stavka menija uspjesno je azurirana.");
       } else {
         await menuItemService.create({
           categoryId: selectedCategoryId,
@@ -231,10 +238,11 @@ export default function MenuManagementPage() {
           price: itemPrice,
           status: 1,
           isAvailable: itemIsAvailable,
+          stockQuantity: itemStockQuantity,
           sku: itemSku || undefined,
         });
 
-        setMessage("Menu item created successfully.");
+        setMessage("Stavka menija uspjesno je dodana.");
       }
 
       setEditingItemId(null);
@@ -244,13 +252,14 @@ export default function MenuManagementPage() {
       setItemPrice(0);
       setItemSku("");
       setItemIsAvailable(true);
+      setItemStockQuantity(0);
 
       await loadMenuItems();
     } catch {
       setError(
         editingItemId
-          ? "Failed to update menu item."
-          : "Failed to create menu item."
+          ? "Nije moguce azurirati stavku menija."
+          : "Nije moguce dodati stavku menija."
       );
     }
   };
@@ -263,6 +272,7 @@ export default function MenuManagementPage() {
     setItemPrice(0);
     setItemSku("");
     setItemIsAvailable(true);
+    setItemStockQuantity(0);
   };
 
   const handleDeleteCategory = async (categoryId: number) => {
@@ -276,11 +286,11 @@ export default function MenuManagementPage() {
         handleCancelCategoryEdit();
       }
 
-      setMessage("Menu category deleted successfully.");
+      setMessage("Kategorija menija uspjesno je obrisana.");
 
       await Promise.all([loadCategories(), loadMenuItems()]);
     } catch {
-      setError("Failed to delete menu category.");
+      setError("Nije moguce obrisati kategoriju menija.");
     }
   };
 
@@ -300,11 +310,11 @@ export default function MenuManagementPage() {
 
       await menuItemService.delete(itemId);
 
-      setMessage("Menu item deleted successfully.");
+      setMessage("Stavka menija uspjesno je obrisana.");
 
       await loadMenuItems();
     } catch {
-      setError("Failed to delete menu item.");
+      setError("Nije moguce obrisati stavku menija.");
     }
   };
 
@@ -316,6 +326,7 @@ export default function MenuManagementPage() {
     setItemPrice(item.price);
     setItemSku(item.sku || "");
     setItemIsAvailable(item.isAvailable);
+    setItemStockQuantity(item.stockQuantity);
   };
 
   const sortedCategories = [...categories].sort(
@@ -334,11 +345,11 @@ export default function MenuManagementPage() {
     <div className="h-full overflow-y-auto bg-gray-50 p-6">
       <div className="mx-auto w-full max-w-7xl">
         <h2 className="mb-2 text-2xl font-bold text-gray-800">
-          Menu Management
+          Upravljanje menijem
         </h2>
 
         <p className="mb-6 text-sm text-gray-500">
-          Create and manage restaurant menu categories and menu items.
+          Dodaj i uredi kategorije i stavke restoranskog menija.
         </p>
 
         {message && (
@@ -356,7 +367,7 @@ export default function MenuManagementPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <section className="rounded-2xl bg-white p-6 shadow-lg lg:col-span-1">
             <h3 className="mb-4 text-xl font-semibold text-gray-800">
-              Categories
+              Kategorije
             </h3>
 
             <CategoryForm
@@ -386,14 +397,14 @@ export default function MenuManagementPage() {
             <div className="mb-4">
               <h3 className="text-xl font-semibold text-gray-800">
                 {selectedCategory
-                  ? `${selectedCategory.name} Items`
-                  : "Menu Items"}
+                  ? `Stavke kategorije ${selectedCategory.name}`
+                  : "Stavke menija"}
               </h3>
 
               <p className="text-sm text-gray-500">
                 {selectedCategory
-                  ? "Items assigned to the selected category."
-                  : "Select a category to view its items."}
+                  ? "Stavke dodijeljene odabranoj kategoriji."
+                  : "Odaberi kategoriju za pregled stavki."}
               </p>
             </div>
 
@@ -404,11 +415,13 @@ export default function MenuManagementPage() {
                 itemPrice={itemPrice}
                 itemSku={itemSku}
                 itemIsAvailable={itemIsAvailable}
+                itemStockQuantity={itemStockQuantity}
                 onItemNameChange={setItemName}
                 onItemDescriptionChange={setItemDescription}
                 onItemPriceChange={setItemPrice}
                 onItemSkuChange={setItemSku}
                 onItemIsAvailableChange={setItemIsAvailable}
+                onItemStockQuantityChange={setItemStockQuantity}
                 onSubmit={handleCreateMenuItem}
                 editingItemId={editingItemId}
                 onCancelEdit={handleCancelEdit}
@@ -417,7 +430,7 @@ export default function MenuManagementPage() {
 
             {!selectedCategory && (
               <p className="text-sm text-gray-500">
-                Select a category from the left side.
+                Odaberi kategoriju s lijeve strane.
               </p>
             )}
 

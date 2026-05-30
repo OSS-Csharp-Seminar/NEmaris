@@ -20,6 +20,9 @@ public class CreateMenuItemDto
 
     public bool IsAvailable { get; set; } = true;
 
+    [Range(0, 100000)]
+    public int StockQuantity { get; set; }
+
     [MaxLength(50)]
     public string? Sku { get; set; }
 }

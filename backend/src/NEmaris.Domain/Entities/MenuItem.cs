@@ -14,6 +14,7 @@ public class MenuItem
 
     public int Status { get; set; }
     public bool IsAvailable { get; set; }
+    public int StockQuantity { get; set; }
 
     public string? Sku { get; set; }
 

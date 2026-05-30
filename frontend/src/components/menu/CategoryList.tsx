@@ -18,11 +18,11 @@ export default function CategoryList({
   onEdit,
 }: CategoryListProps) {
   if (isLoading) {
-    return <p className="text-sm text-gray-500">Loading categories...</p>;
+    return <p className="text-sm text-gray-500">Ucitavanje kategorija...</p>;
   }
 
   if (categories.length === 0) {
-    return <p className="text-sm text-gray-500">No categories found.</p>;
+    return <p className="text-sm text-gray-500">Nema pronadjenih kategorija.</p>;
   }
 
   return (
@@ -46,14 +46,14 @@ export default function CategoryList({
                 <h4 className="font-medium text-gray-800">{category.name}</h4>
 
                 <p className="text-sm text-gray-500">
-                  {category.description || "No description"}
+                  {category.description || "Nema opisa"}
                 </p>
               </div>
             </button>
 
             <div className="flex flex-col items-end gap-3">
               <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
-                Order: {category.displayOrder}
+                Redoslijed: {category.displayOrder}
               </span>
 
               <div className="flex gap-2">
@@ -62,7 +62,7 @@ export default function CategoryList({
                   onClick={() => onEdit(category)}
                   className="rounded-lg bg-blue-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
                 >
-                  Edit
+                  Uredi
                 </button>
 
                 <button
@@ -70,7 +70,7 @@ export default function CategoryList({
                   onClick={() => onDelete(category.id)}
                   className="rounded-lg bg-red-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
                 >
-                  Delete
+                  Obrisi
                 </button>
               </div>
             </div>
