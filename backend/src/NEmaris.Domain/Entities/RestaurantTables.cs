@@ -7,6 +7,7 @@ public class RestaurantTables
     public long Id { get; set; }
     public required string TableNumber { get; set; }
     public int Capacity { get; set; }
+    public int GuestCount { get; set; }
     public string? Zone { get; set; }
     public TableStatus Status { get; set; }
     public int Floor { get; set; }

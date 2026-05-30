@@ -60,6 +60,7 @@ function withLayout(table: ApiRestaurantTable): Required<ApiRestaurantTable> {
 
   return {
     ...table,
+    guestCount: table.guestCount ?? 0,
     floor: table.floor ?? fallback?.floor ?? 1,
     positionX: table.positionX ?? fallback?.positionX ?? 50,
     positionY: table.positionY ?? fallback?.positionY ?? 50,
@@ -76,6 +77,7 @@ function mapTable(table: ApiRestaurantTable): RestaurantTable {
     id: String(tableWithLayout.id),
     name: getTableName(tableWithLayout.tableNumber),
     capacity: tableWithLayout.capacity,
+    guestCount: tableWithLayout.guestCount ?? 0,
     status: statusByApiValue[tableWithLayout.status] ?? "available",
     x: Number(tableWithLayout.positionX),
     y: Number(tableWithLayout.positionY),
@@ -105,6 +107,19 @@ const tableService = {
       const response = await api.get<ApiRestaurantTable[]>("/tables");
       return mapFloors(response.data);
     }
+  },
+
+  async changeGuestCount(tableId: string, change: -1 | 1): Promise<RestaurantTable> {
+    const response = await api.patch<ApiRestaurantTable>(
+      `/tables/${tableId}/guest-count`,
+      { change },
+    );
+    return mapTable(response.data);
+  },
+
+  async markOccupied(tableId: string): Promise<RestaurantTable> {
+    const response = await api.post<ApiRestaurantTable>(`/tables/${tableId}/occupy`);
+    return mapTable(response.data);
   },
 };
 

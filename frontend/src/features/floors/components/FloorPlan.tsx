@@ -165,7 +165,7 @@ export default function FloorPlan({
   onSelectTable,
 }: FloorPlanProps) {
   return (
-    <div className="relative min-h-[560px] flex-1 overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
+    <div className="relative h-full min-h-0 overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
       <div className="absolute inset-6 rounded-md border-2 border-slate-700 bg-slate-50" />
       <div className="absolute left-[8%] right-[8%] top-1/2 h-px bg-slate-200" />
       <div className="absolute bottom-[12%] top-[12%] left-1/2 w-px bg-slate-200" />

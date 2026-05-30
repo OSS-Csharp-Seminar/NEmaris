@@ -5,6 +5,7 @@ import type {
   RestaurantTable,
   TableStatus,
 } from "../types/floor";
+import tableService from "../services/tableService";
 import OrderPanel from "../../../components/orders/OrderPanel";
 
 interface TablePickerProps {
@@ -20,9 +21,25 @@ export default function TablePicker({
 }: TablePickerProps) {
   const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null);
   const [orderPanelTable, setOrderPanelTable] = useState<RestaurantTable | null>(null);
+  const [isUpdatingTable, setIsUpdatingTable] = useState(false);
+  const [tableError, setTableError] = useState<string | null>(null);
+
+  const updateSelectedTable = async (update: () => Promise<RestaurantTable>) => {
+    setIsUpdatingTable(true);
+    setTableError(null);
+    try {
+      const nextTable = await update();
+      setSelectedTable(nextTable);
+      onTableStatusChange?.();
+    } catch {
+      setTableError("Nije moguce azurirati stol.");
+    } finally {
+      setIsUpdatingTable(false);
+    }
+  };
 
   return (
-    <section className="flex h-full flex-col gap-6">
+    <section className="flex h-full min-h-0 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-primary">Odabir stolova</p>
@@ -40,7 +57,7 @@ export default function TablePicker({
         </button>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_280px]">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         <FloorPlan
           tables={floor.tables}
           selectedTableId={selectedTable?.id ?? null}
@@ -50,6 +67,18 @@ export default function TablePicker({
         <TableDetails
           table={selectedTable}
           onOpenOrder={() => setOrderPanelTable(selectedTable)}
+          onChangeGuestCount={(change) =>
+            selectedTable &&
+            updateSelectedTable(() =>
+              tableService.changeGuestCount(selectedTable.id, change),
+            )
+          }
+          onMarkOccupied={() =>
+            selectedTable &&
+            updateSelectedTable(() => tableService.markOccupied(selectedTable.id))
+          }
+          isUpdating={isUpdatingTable}
+          error={tableError}
         />
       </div>
 
@@ -74,9 +103,17 @@ const statusLabel: Record<TableStatus, string> = {
 function TableDetails({
   table,
   onOpenOrder,
+  onChangeGuestCount,
+  onMarkOccupied,
+  isUpdating,
+  error,
 }: {
   table: RestaurantTable | null;
   onOpenOrder: () => void;
+  onChangeGuestCount: (change: -1 | 1) => void;
+  onMarkOccupied: () => void;
+  isUpdating: boolean;
+  error: string | null;
 }) {
   if (!table) {
     return (
@@ -118,13 +155,55 @@ function TableDetails({
         </dl>
       </div>
 
-      <button
-        type="button"
-        onClick={onOpenOrder}
-        className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition"
-      >
-        {table.status === "available" ? "Otvori narudžbu" : "Pregledaj narudžbu"}
-      </button>
+      <div className="rounded-lg border border-border bg-secondary/40 p-3">
+        <p className="text-sm font-medium text-card-foreground">Broj osoba</p>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => onChangeGuestCount(-1)}
+            disabled={isUpdating || table.guestCount === 0}
+            aria-label="Oduzmi osobu"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-xl font-semibold transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            -
+          </button>
+          <strong className="text-2xl text-card-foreground">
+            {table.guestCount}
+          </strong>
+          <button
+            type="button"
+            onClick={() => onChangeGuestCount(1)}
+            disabled={isUpdating || table.guestCount === table.capacity}
+            aria-label="Dodaj osobu"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-xl font-semibold transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {table.status === "reserved" && (
+        <button
+          type="button"
+          onClick={onMarkOccupied}
+          disabled={isUpdating}
+          className="w-full rounded-lg bg-rose-500 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:opacity-50"
+        >
+          Oznaci kao zauzet
+        </button>
+      )}
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {table.status === "occupied" && (
+        <button
+          type="button"
+          onClick={onOpenOrder}
+          className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition"
+        >
+          Pregledaj ili otvori narudžbu
+        </button>
+      )}
     </aside>
   );
 }

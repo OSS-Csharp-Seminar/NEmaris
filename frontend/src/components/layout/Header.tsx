@@ -2,7 +2,11 @@ import { useNavigate } from "react-router-dom";
 import NemarisIcon from "../common/NemarisIcon";
 import { useAuth } from "../../context/useAuth";
 
-export default function Header() {
+interface HeaderProps {
+  onOpenChat: () => void;
+}
+
+export default function Header({ onOpenChat }: HeaderProps) {
   const { isAuthenticated, isAdmin, user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -27,36 +31,56 @@ export default function Header() {
               )}
             </span>
 
-            <div
+            <button
+              type="button"
+              onClick={() => navigate("/home")}
+              className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+            >
+              Stolovi
+            </button>
+
+            <button
+              type="button"
               onClick={() => navigate("/orders")}
               className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
             >
               Narudžbe
-            </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenChat}
+              className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+            >
+              Chat
+            </button>
 
             {isAdmin && (
-              <div
+              <button
+                type="button"
                 onClick={() => navigate("/register")}
                 className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
               >
                 Register User
-              </div>
+              </button>
             )}
 
-            <div
+            <button
+              type="button"
               onClick={handleLogout}
               className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-primary-foreground text-sm"
             >
               Logout
-            </div>
+            </button>
           </>
         ) : (
-          <div
+          <button
+            type="button"
             onClick={() => navigate("/login")}
             className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-primary-foreground text-sm"
           >
             Login
-          </div>
+          </button>
         )}
       </div>
     </div>

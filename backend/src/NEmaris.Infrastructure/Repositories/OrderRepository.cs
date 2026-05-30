@@ -37,6 +37,9 @@ public class OrderRepository : IOrderRepository
             .Include(o => o.Items).ThenInclude(i => i.MenuItem)
             .FirstOrDefaultAsync(o => o.TableId == tableId && o.Status == OrderStatus.Open);
 
+    public async Task<RestaurantTables?> GetTableByIdAsync(long tableId)
+        => await _db.Tables.FindAsync(tableId);
+
     public async Task<IReadOnlyList<Order>> GetOrdersAsync(OrderStatus? status = null, DateTime? from = null, DateTime? to = null)
     {
         var query = _db.Orders
@@ -150,6 +153,8 @@ public class OrderRepository : IOrderRepository
         if (table is null) return;
 
         table.Status = status;
+        if (status == TableStatus.Available)
+            table.GuestCount = 0;
         table.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
     }

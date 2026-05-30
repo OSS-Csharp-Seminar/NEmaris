@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NEmaris.Application.DTOs;
 using NEmaris.Application.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace NEmaris.API.Controllers;
 
@@ -84,6 +86,45 @@ public class TablesController : ControllerBase
         }
     }
 
+    [HttpPatch("{id:long}/guest-count")]
+    public async Task<IActionResult> ChangeGuestCount(long id, [FromBody] UpdateTableGuestCountDto request)
+    {
+        try
+        {
+            return Ok(ToResponse(await _tableService.ChangeGuestCountAsync(id, request.Change)));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:long}/occupy")]
+    public async Task<IActionResult> MarkOccupied(long id)
+    {
+        try
+        {
+            var waiterUserId =
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
+                throw new InvalidOperationException("Authenticated user ID not found.");
+
+            return Ok(ToResponse(await _tableService.MarkOccupiedAsync(id, waiterUserId)));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
     private static object ToResponse(TableDto table)
     {
         return new
@@ -91,6 +132,7 @@ public class TablesController : ControllerBase
             table.Id,
             table.TableNumber,
             table.Capacity,
+            table.GuestCount,
             table.Zone,
             Status = (int)table.Status,
             table.Floor,
