@@ -13,6 +13,14 @@ public class ReservationService : IReservationService
         "tbd", "tba", "?", "??", "???", "-", "--", "...", "string"
     };
 
+    private static readonly HashSet<string> PlaceholderNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "doe", "john doe", "jane doe", "test", "tester", "testuser", "test user",
+        "sample", "example", "anonymous", "anon", "guest", "customer", "demo",
+        "firstname", "lastname", "first name", "last name", "fname", "lname",
+        "foo", "bar", "baz", "asdf", "qwerty"
+    };
+
     private readonly IReservationRepository _reservationRepository;
 
     public ReservationService(IReservationRepository reservationRepository)
@@ -31,6 +39,51 @@ public class ReservationService : IReservationService
         return trimmed;
     }
 
+    private static string RequireRealName(string? value, string fieldName)
+    {
+        var trimmed = RequireRealValue(value, fieldName);
+        if (PlaceholderNames.Contains(trimmed))
+            throw new InvalidOperationException($"{fieldName} '{trimmed}' looks like a placeholder. Ask the guest for their real name.");
+        return trimmed;
+    }
+
+    private static string RequireRealPhone(string? value)
+    {
+        var trimmed = RequireRealValue(value, "Phone number");
+        var digits = new string(trimmed.Where(char.IsDigit).ToArray());
+
+        if (digits.Length < 7)
+            throw new InvalidOperationException($"Phone number '{trimmed}' is too short. Ask the guest for a real phone number.");
+
+        if (digits.Distinct().Count() == 1)
+            throw new InvalidOperationException($"Phone number '{trimmed}' looks like a placeholder. Ask the guest for a real phone number.");
+
+        if (IsSequentialDigits(digits))
+            throw new InvalidOperationException($"Phone number '{trimmed}' looks like a placeholder. Ask the guest for a real phone number.");
+
+        return trimmed;
+    }
+
+    private static bool IsSequentialDigits(string digits)
+    {
+        if (digits.Length < 7) return false;
+        var ascending = true;
+        var descending = true;
+        for (var i = 1; i < digits.Length; i++)
+        {
+            if (digits[i] - digits[i - 1] != 1) ascending = false;
+            if (digits[i - 1] - digits[i] != 1) descending = false;
+        }
+        return ascending || descending;
+    }
+
+    private static void RejectPlaceholderNamePair(string firstName, string lastName)
+    {
+        var combined = $"{firstName} {lastName}".Trim();
+        if (PlaceholderNames.Contains(combined))
+            throw new InvalidOperationException($"Name '{combined}' looks like a placeholder. Ask the guest for their real name.");
+    }
+
     public async Task<ReservationResponseDto> CreateReservationAsync(CreateReservationDto dto, string? reservedByUserId)
     {
         if (dto.StartTime == default || dto.EndTime == default)
@@ -42,9 +95,10 @@ public class ReservationService : IReservationService
         if (dto.PartySize <= 0)
             throw new InvalidOperationException("Party size must be greater than zero.");
 
-        var firstName = RequireRealValue(dto.FirstName, "First name");
-        var lastName = RequireRealValue(dto.LastName, "Last name");
-        var normalizedPhone = RequireRealValue(dto.Phone, "Phone number");
+        var firstName = RequireRealName(dto.FirstName, "First name");
+        var lastName = RequireRealName(dto.LastName, "Last name");
+        RejectPlaceholderNamePair(firstName, lastName);
+        var normalizedPhone = RequireRealPhone(dto.Phone);
 
         var normalizedEmail = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim();
         var normalizedNotes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();

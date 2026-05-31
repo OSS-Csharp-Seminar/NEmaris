@@ -7,5 +7,5 @@ public class OllamaOptions
     public string BaseUrl { get; set; } = "http://localhost:11434";
     public string Model { get; set; } = "llama3.2";
     public int MaxToolIterations { get; set; } = 6;
-    public double Temperature { get; set; } = 0.2;
+    public double Temperature { get; set; } = 0.0;
 }

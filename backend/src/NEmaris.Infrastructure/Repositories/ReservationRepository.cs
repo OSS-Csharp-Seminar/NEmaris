@@ -91,10 +91,13 @@ public class ReservationRepository : IReservationRepository
             .Distinct()
             .ToListAsync();
 
+        var applyLiveStatus = startTime <= DateTime.UtcNow.AddHours(2);
+
         return await _context.Tables
             .AsNoTracking()
             .Where(t => t.Capacity >= partySize)
             .Where(t => !reservedTableIds.Contains(t.Id))
+            .Where(t => !applyLiveStatus || t.Status == TableStatus.Available)
             .OrderBy(t => t.Capacity)
             .ThenBy(t => t.TableNumber)
             .ToListAsync();

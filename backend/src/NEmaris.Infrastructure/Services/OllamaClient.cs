@@ -34,6 +34,7 @@ public class OllamaClient : IOllamaClient
         {
             model = _options.Model,
             stream = false,
+            think = false,
             options = new { temperature = _options.Temperature },
             messages = messages.Select(m => new
             {

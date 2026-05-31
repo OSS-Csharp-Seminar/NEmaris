@@ -70,7 +70,15 @@ public class CreateReservationTool : IChatTool
             Notes = ToolArgs.GetOptionalString(arguments, "notes")
         };
 
-        var reservation = await _reservationService.CreateReservationAsync(dto, reservedByUserId: null);
+        ReservationResponseDto reservation;
+        try
+        {
+            reservation = await _reservationService.CreateReservationAsync(dto, reservedByUserId: null);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new InvalidOperationException(ex.Message + " " + BuildStateHint(dto, tableNumber, startTime));
+        }
 
         var summary = new
         {
@@ -79,9 +87,48 @@ public class CreateReservationTool : IChatTool
             endTime = reservation.EndTime,
             partySize = reservation.PartySize,
             status = reservation.Status,
-            specialRequest = reservation.SpecialRequest
+            specialRequest = reservation.SpecialRequest,
+            confirmation = BuildConfirmation(reservation)
         };
 
         return JsonSerializer.Serialize(summary, ToolJsonOptions.Default);
+    }
+
+    private static readonly TimeZoneInfo DisplayTimeZone = ResolveDisplayTimeZone();
+
+    private static TimeZoneInfo ResolveDisplayTimeZone()
+    {
+        foreach (var id in new[] { "Europe/Zagreb", "Central European Standard Time" })
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+            catch (TimeZoneNotFoundException) { }
+            catch (InvalidTimeZoneException) { }
+        }
+        return TimeZoneInfo.Utc;
+    }
+
+    private static string BuildStateHint(CreateReservationDto dto, string tableNumber, DateTime startTime)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(dto.FirstName)) parts.Add($"firstName='{dto.FirstName}'");
+        if (!string.IsNullOrWhiteSpace(dto.LastName)) parts.Add($"lastName='{dto.LastName}'");
+        if (!string.IsNullOrWhiteSpace(dto.Phone)) parts.Add($"phone='{dto.Phone}'");
+        parts.Add($"tableNumber='{tableNumber}'");
+        parts.Add($"partySize={dto.PartySize}");
+        parts.Add($"startTime='{startTime:yyyy-MM-ddTHH:mm:ss}Z'");
+
+        return "When you retry, re-send every field EXCEPT the one the guest is replacing. Already collected: " +
+               string.Join(", ", parts) + ".";
+    }
+
+    private static string BuildConfirmation(ReservationResponseDto r)
+    {
+        var startUtc = DateTime.SpecifyKind(r.StartTime, DateTimeKind.Utc);
+        var endUtc = DateTime.SpecifyKind(r.EndTime, DateTimeKind.Utc);
+        var startLocal = TimeZoneInfo.ConvertTimeFromUtc(startUtc, DisplayTimeZone);
+        var endLocal = TimeZoneInfo.ConvertTimeFromUtc(endUtc, DisplayTimeZone);
+
+        return $"Reservation confirmed for {r.GuestFullName} at table {r.TableNumber} for {r.PartySize} on " +
+               $"{startLocal:dddd d MMMM yyyy} from {startLocal:HH:mm} to {endLocal:HH:mm}.";
     }
 }
