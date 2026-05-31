@@ -8,13 +8,16 @@ public class CreateReservationTool : IChatTool
 {
     private readonly IReservationService _reservationService;
     private readonly IReservationRepository _reservationRepository;
+    private readonly IRequestTimeZoneContext _timeZoneContext;
 
     public CreateReservationTool(
         IReservationService reservationService,
-        IReservationRepository reservationRepository)
+        IReservationRepository reservationRepository,
+        IRequestTimeZoneContext timeZoneContext)
     {
         _reservationService = reservationService;
         _reservationRepository = reservationRepository;
+        _timeZoneContext = timeZoneContext;
     }
 
     public string Name => "create_reservation";
@@ -88,23 +91,10 @@ public class CreateReservationTool : IChatTool
             partySize = reservation.PartySize,
             status = reservation.Status,
             specialRequest = reservation.SpecialRequest,
-            confirmation = BuildConfirmation(reservation)
+            confirmation = BuildConfirmation(reservation, _timeZoneContext.TimeZone)
         };
 
         return JsonSerializer.Serialize(summary, ToolJsonOptions.Default);
-    }
-
-    private static readonly TimeZoneInfo DisplayTimeZone = ResolveDisplayTimeZone();
-
-    private static TimeZoneInfo ResolveDisplayTimeZone()
-    {
-        foreach (var id in new[] { "Europe/Zagreb", "Central European Standard Time" })
-        {
-            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
-            catch (TimeZoneNotFoundException) { }
-            catch (InvalidTimeZoneException) { }
-        }
-        return TimeZoneInfo.Utc;
     }
 
     private static string BuildStateHint(CreateReservationDto dto, string tableNumber, DateTime startTime)
@@ -121,12 +111,12 @@ public class CreateReservationTool : IChatTool
                string.Join(", ", parts) + ".";
     }
 
-    private static string BuildConfirmation(ReservationResponseDto r)
+    private static string BuildConfirmation(ReservationResponseDto r, TimeZoneInfo displayTimeZone)
     {
         var startUtc = DateTime.SpecifyKind(r.StartTime, DateTimeKind.Utc);
         var endUtc = DateTime.SpecifyKind(r.EndTime, DateTimeKind.Utc);
-        var startLocal = TimeZoneInfo.ConvertTimeFromUtc(startUtc, DisplayTimeZone);
-        var endLocal = TimeZoneInfo.ConvertTimeFromUtc(endUtc, DisplayTimeZone);
+        var startLocal = TimeZoneInfo.ConvertTimeFromUtc(startUtc, displayTimeZone);
+        var endLocal = TimeZoneInfo.ConvertTimeFromUtc(endUtc, displayTimeZone);
 
         return $"Reservation confirmed for {r.GuestFullName} at table {r.TableNumber} for {r.PartySize} on " +
                $"{startLocal:dddd d MMMM yyyy} from {startLocal:HH:mm} to {endLocal:HH:mm}.";

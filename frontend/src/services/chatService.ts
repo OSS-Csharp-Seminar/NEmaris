@@ -7,14 +7,27 @@ export interface ChatMessage {
 
 export interface ChatRequest {
   messages: ChatMessage[];
+  timeZone?: string;
 }
 
 export interface ChatResponse {
   reply: string;
 }
 
+function detectTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 const chatService = {
-  send: (request: ChatRequest) => api.post<ChatResponse>("/chat", request),
+  send: (request: ChatRequest) =>
+    api.post<ChatResponse>("/chat", {
+      ...request,
+      timeZone: request.timeZone ?? detectTimeZone(),
+    }),
 };
 
 export default chatService;

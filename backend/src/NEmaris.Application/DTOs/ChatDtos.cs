@@ -7,6 +7,8 @@ public class ChatRequestDto
     [Required]
     [MinLength(1)]
     public List<ChatMessageDto> Messages { get; set; } = new();
+
+    public string? TimeZone { get; set; }
 }
 
 public class ChatMessageDto

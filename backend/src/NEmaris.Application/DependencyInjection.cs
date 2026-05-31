@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<IReservationService, ReservationService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<IRequestTimeZoneContext, RequestTimeZoneContext>();
 
         services.AddScoped<IChatTool, GetAvailableTablesTool>();
         services.AddScoped<IChatTool, CreateReservationTool>();

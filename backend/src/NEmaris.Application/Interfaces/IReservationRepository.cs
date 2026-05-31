@@ -13,6 +13,7 @@ public interface IReservationRepository
     Task AddReservationAsync(Reservations reservation);
     Task<IReadOnlyList<Reservations>> GetReservationsAsync(DateOnly? fromDate, DateOnly? toDate);
     Task<IReadOnlyList<RestaurantTables>> GetAvailableTablesAsync(DateTime startTime, DateTime endTime, int partySize);
+    Task<HashSet<long>> GetTableIdsWithLiveReservationAsync(DateTime nowUtc);
     Task<Reservations?> GetReservationByIdAsync(long id);
     Task<IReadOnlyList<Reservations>> GetReservationsByPhoneAsync(string phone);
     Task<IReadOnlyList<Reservations>> GetUpcomingReservationsByPhoneAndLastNameAsync(string phone, string lastName, DateTime asOfUtc);

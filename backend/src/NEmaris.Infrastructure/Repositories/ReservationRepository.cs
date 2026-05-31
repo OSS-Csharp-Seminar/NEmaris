@@ -78,6 +78,23 @@ public class ReservationRepository : IReservationRepository
             .ToListAsync();
     }
 
+    private static readonly TimeSpan LiveReservationLeadTime = TimeSpan.FromMinutes(30);
+
+    public async Task<HashSet<long>> GetTableIdsWithLiveReservationAsync(DateTime nowUtc)
+    {
+        var leadCutoff = nowUtc + LiveReservationLeadTime;
+        var ids = await _context.Reservations
+            .AsNoTracking()
+            .Where(r =>
+                (r.Status == ReservationStatus.Active || r.Status == ReservationStatus.Late) &&
+                r.StartTime <= leadCutoff &&
+                nowUtc < r.EndTime)
+            .Select(r => r.TableId)
+            .Distinct()
+            .ToListAsync();
+        return ids.ToHashSet();
+    }
+
     public async Task<IReadOnlyList<RestaurantTables>> GetAvailableTablesAsync(DateTime startTime, DateTime endTime, int partySize)
     {
         var reservedTableIds = await _context.Reservations

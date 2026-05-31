@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NEmaris.Application.DTOs;
+using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Enums;
 using NEmaris.Infrastructure.Persistence;
 
@@ -13,10 +14,12 @@ namespace NEmaris.API.Controllers;
 public class PublicOverviewController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ITableService _tableService;
 
-    public PublicOverviewController(AppDbContext db)
+    public PublicOverviewController(AppDbContext db, ITableService tableService)
     {
         _db = db;
+        _tableService = tableService;
     }
 
     [HttpGet]
@@ -24,17 +27,7 @@ public class PublicOverviewController : ControllerBase
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var tableCounts = await _db.Tables
-            .AsNoTracking()
-            .GroupBy(_ => 1)
-            .Select(tables => new
-            {
-                Total = tables.Count(),
-                Occupied = tables.Count(table => table.Status == TableStatus.Seated),
-                Reserved = tables.Count(table => table.Status == TableStatus.Reserved),
-                Available = tables.Count(table => table.Status == TableStatus.Available)
-            })
-            .FirstOrDefaultAsync();
+        var tables = await _tableService.GetAllAsync();
 
         var reservationsToday = await _db.Reservations
             .AsNoTracking()
@@ -50,10 +43,10 @@ public class PublicOverviewController : ControllerBase
 
         return Ok(new PublicOverviewDto
         {
-            TotalTables = tableCounts?.Total ?? 0,
-            OccupiedTables = tableCounts?.Occupied ?? 0,
-            ReservedTables = tableCounts?.Reserved ?? 0,
-            AvailableTables = tableCounts?.Available ?? 0,
+            TotalTables = tables.Count,
+            OccupiedTables = tables.Count(t => t.Status == TableStatus.Seated),
+            ReservedTables = tables.Count(t => t.Status == TableStatus.Reserved),
+            AvailableTables = tables.Count(t => t.Status == TableStatus.Available),
             ReservationsToday = reservationsToday,
             UpcomingReservations = upcomingReservations
         });

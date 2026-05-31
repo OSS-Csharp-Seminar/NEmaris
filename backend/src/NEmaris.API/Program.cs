@@ -84,10 +84,11 @@ if (app.Environment.IsDevelopment())
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapGet("/api/table-layout/tables", async (AppDbContext db) =>
+app.MapGet("/api/table-layout/tables", async (NEmaris.Application.Interfaces.ITableService tableService) =>
 {
-    var tables = await db.Tables
-        .AsNoTracking()
+    var tables = await tableService.GetAllAsync();
+
+    var response = tables
         .OrderBy(table => table.Floor)
         .ThenBy(table => table.TableNumber)
         .Select(table => new
@@ -105,10 +106,9 @@ app.MapGet("/api/table-layout/tables", async (AppDbContext db) =>
             table.Rotation,
             table.CreatedAt,
             table.UpdatedAt
-        })
-        .ToListAsync();
+        });
 
-    return Results.Ok(tables);
+    return Results.Ok(response);
 });
 app.MapControllers();
 // Seed admin user

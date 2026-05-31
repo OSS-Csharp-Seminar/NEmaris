@@ -8,12 +8,38 @@ namespace NEmaris.Application.Services;
 
 public class ChatService : IChatService
 {
-    private static string BuildSystemPrompt(DateTime nowUtc) =>
+    private static string BuildSystemPrompt(DateTime nowUtc, TimeZoneInfo guestTimeZone)
+    {
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, guestTimeZone);
+        var offset = guestTimeZone.GetUtcOffset(nowUtc);
+        var offsetLabel = (offset >= TimeSpan.Zero ? "+" : "-") + offset.ToString(@"hh\:mm");
+        var isUtc = guestTimeZone.Equals(TimeZoneInfo.Utc);
+
+        var timeContext = isUtc
+            ? $"The current date and time is {nowUtc:yyyy-MM-ddTHH:mm:ss}Z (UTC). " +
+              "The guest's timezone was not supplied, so treat all clock times as UTC. "
+            : $"The current time is {nowLocal:yyyy-MM-dd HH:mm} in the guest's timezone " +
+              $"({guestTimeZone.Id}, offset {offsetLabel}), which is {nowUtc:yyyy-MM-ddTHH:mm:ss}Z in UTC. " +
+              "When the guest gives a clock time like \"17:00\", \"7pm\", or \"tonight at 8\", interpret it as " +
+              $"their LOCAL time and convert it to UTC by subtracting the offset ({offsetLabel}) before passing " +
+              "startTime to any tool. Example: guest says \"17:00 tomorrow\" with offset +02:00 → " +
+              "startTime = (tomorrow's date)T15:00:00Z. Tools always expect UTC. ";
+
+        return
         $"You are the reservations assistant for the NEmaris restaurant. " +
         "Help guests check availability, create, find, update, and cancel reservations using the provided tools.\n\n" +
-        $"The current date and time is {nowUtc:yyyy-MM-ddTHH:mm:ss}Z (UTC). " +
-        "Use it to resolve relative dates and times like \"tomorrow\", \"next Friday\", \"now\", \"in 5 minutes\", or \"tonight\". " +
+        timeContext +
+        "Use this clock to resolve relative dates and times like \"tomorrow\", \"next Friday\", \"now\", \"in 5 minutes\", or \"tonight\". " +
         "Never guess the date or time — if you are unsure, use this one.\n\n" +
+        "Reservation conversation order — follow these steps in this exact sequence. Do NOT skip ahead and " +
+        "do NOT call any tool until the step's requirement is met:\n" +
+        "1. Ask for partySize if missing.\n" +
+        "2. Ask for the desired startTime (\"for when?\") if missing — you MUST have an explicit guest-provided time " +
+        "before step 3. Never invent a default time.\n" +
+        "3. Call get_available_tables with partySize and startTime, then show the list.\n" +
+        "4. Let the guest pick a tableNumber from the list.\n" +
+        "5. Ask for firstName, lastName, and phone if any are missing.\n" +
+        "6. Call create_reservation. Only after it returns a confirmation may you tell the guest the booking is done.\n\n" +
         "Required fields before calling create_reservation:\n" +
         "- firstName, lastName, phone, partySize, tableNumber, startTime, durationMinutes (default 90)\n" +
         "- You may ONLY use firstName, lastName, and phone values that the guest has typed in THEIR OWN messages " +
@@ -50,6 +76,10 @@ public class ChatService : IChatService
         "- When create_reservation returns a \"confirmation\" field, your reply MUST contain that confirmation string " +
         "verbatim. Do not paraphrase the date, times, table, or party size — copy the confirmation sentence as-is. " +
         "You may add a brief friendly closing after it, but never alter the confirmation itself.\n" +
+        "- NEVER claim you have reserved, booked, confirmed, or saved anything unless you actually called " +
+        "create_reservation in this turn AND it returned a confirmation field. If you have not called the tool, " +
+        "do not write phrases like \"I've reserved\", \"booked\", \"your reservation is confirmed\", or \"all set\". " +
+        "Instead, say what is still missing and ask the guest for it.\n" +
         "- Refer to tables by tableNumber (e.g. \"T2\"), never by any internal id. " +
         "Refer to reservations by table + date/time. NEVER mention numeric ids or reservation numbers. " +
         "If asked for a reservation number, say we identify reservations by phone and time.\n" +
@@ -59,23 +89,29 @@ public class ChatService : IChatService
         "tool in the SAME turn and answer from its result. Do not produce filler like \"let me check\", " +
         "\"one moment\", or \"I'll get back to you\".\n" +
         "- Be concise and friendly.\n\n/no_think";
+    }
 
     private readonly IOllamaClient _ollama;
     private readonly IEnumerable<IChatTool> _tools;
     private readonly OllamaOptions _options;
+    private readonly IRequestTimeZoneContext _timeZoneContext;
 
     public ChatService(
         IOllamaClient ollama,
         IEnumerable<IChatTool> tools,
-        IOptions<OllamaOptions> options)
+        IOptions<OllamaOptions> options,
+        IRequestTimeZoneContext timeZoneContext)
     {
         _ollama = ollama;
         _tools = tools;
         _options = options.Value;
+        _timeZoneContext = timeZoneContext;
     }
 
     public async Task<ChatResponseDto> ChatAsync(ChatRequestDto request, CancellationToken cancellationToken)
     {
+        _timeZoneContext.Set(request.TimeZone);
+
         var toolsByName = _tools.ToDictionary(t => t.Name, StringComparer.Ordinal);
         var toolDefinitions = _tools.Select(t => new OllamaToolDefinition
         {
@@ -86,7 +122,7 @@ public class ChatService : IChatService
 
         var messages = new List<OllamaChatMessage>
         {
-            new() { Role = "system", Content = BuildSystemPrompt(DateTime.UtcNow) }
+            new() { Role = "system", Content = BuildSystemPrompt(DateTime.UtcNow, _timeZoneContext.TimeZone) }
         };
 
         foreach (var msg in request.Messages)

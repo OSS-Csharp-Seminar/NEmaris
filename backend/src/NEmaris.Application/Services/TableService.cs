@@ -9,17 +9,23 @@ public class TableService : ITableService
 {
     private readonly ITableRepository _tableRepository;
     private readonly IOrderService _orderService;
+    private readonly IReservationRepository _reservationRepository;
 
-    public TableService(ITableRepository tableRepository, IOrderService orderService)
+    public TableService(
+        ITableRepository tableRepository,
+        IOrderService orderService,
+        IReservationRepository reservationRepository)
     {
         _tableRepository = tableRepository;
         _orderService = orderService;
+        _reservationRepository = reservationRepository;
     }
 
     public async Task<IReadOnlyList<TableDto>> GetAllAsync()
     {
         var tables = await _tableRepository.GetAllAsync();
-        return tables.Select(MapToDto).ToList();
+        var liveReserved = await _reservationRepository.GetTableIdsWithLiveReservationAsync(DateTime.UtcNow);
+        return tables.Select(t => MapToDto(t, liveReserved)).ToList();
     }
 
     public async Task<TableDto> GetByIdAsync(long id)
@@ -28,7 +34,8 @@ public class TableService : ITableService
         if (table is null)
             throw new KeyNotFoundException("Table not found.");
 
-        return MapToDto(table);
+        var liveReserved = await _reservationRepository.GetTableIdsWithLiveReservationAsync(DateTime.UtcNow);
+        return MapToDto(table, liveReserved);
     }
 
     public async Task<long> CreateTableAsync(CreateTableDto dto)
@@ -146,8 +153,16 @@ public class TableService : ITableService
         await _tableRepository.DeleteAsync(table);
     }
 
-    private static TableDto MapToDto(RestaurantTables table)
+    private static TableDto MapToDto(RestaurantTables table, IReadOnlySet<long>? liveReservedIds = null)
     {
+        var effectiveStatus = table.Status;
+        if (effectiveStatus == TableStatus.Available &&
+            liveReservedIds is not null &&
+            liveReservedIds.Contains(table.Id))
+        {
+            effectiveStatus = TableStatus.Reserved;
+        }
+
         return new TableDto
         {
             Id = table.Id,
@@ -155,7 +170,7 @@ public class TableService : ITableService
             Capacity = table.Capacity,
             GuestCount = table.GuestCount,
             Zone = table.Zone,
-            Status = table.Status,
+            Status = effectiveStatus,
             Floor = table.Floor,
             PositionX = table.PositionX,
             PositionY = table.PositionY,
