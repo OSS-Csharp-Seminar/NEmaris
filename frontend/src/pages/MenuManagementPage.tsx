@@ -36,6 +36,7 @@ export default function MenuManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [menuItemSearch, setMenuItemSearch] = useState("");
 
   const normalizeCategories = (data: unknown): MenuCategory[] => {
     if (Array.isArray(data)) return data;
@@ -337,9 +338,18 @@ export default function MenuManagementPage() {
     (category) => category.id === selectedCategoryId
   );
 
-  const selectedCategoryItems = menuItems.filter(
-    (item) => item.categoryId === selectedCategoryId
-  );
+  const normalizedMenuItemSearch = menuItemSearch.trim().toLowerCase();
+
+  const selectedCategoryItems = menuItems.filter((item) => {
+    if (item.categoryId !== selectedCategoryId) return false;
+
+    if (!normalizedMenuItemSearch) return true;
+
+    return (
+      item.name.toLowerCase().includes(normalizedMenuItemSearch) ||
+      (item.sku ?? "").toLowerCase().includes(normalizedMenuItemSearch)
+    );
+  });
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 p-6">
@@ -425,6 +435,15 @@ export default function MenuManagementPage() {
                 onSubmit={handleCreateMenuItem}
                 editingItemId={editingItemId}
                 onCancelEdit={handleCancelEdit}
+              />
+            )}
+
+            {selectedCategory && (
+              <input
+                className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none transition-colors focus:border-blue-500"
+                placeholder="Pretrazi po nazivu ili sifri proizvoda"
+                value={menuItemSearch}
+                onChange={(e) => setMenuItemSearch(e.target.value)}
               />
             )}
 

@@ -14,6 +14,7 @@ export default function AddItemModal({ onAdd, onClose }: Props) {
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [adding, setAdding] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     Promise.all([menuCategoryService.getAll(), menuItemService.getAll()]).then(
@@ -26,9 +27,21 @@ export default function AddItemModal({ onAdd, onClose }: Props) {
     );
   }, []);
 
-  const filtered = selectedCategoryId
-    ? items.filter((i) => i.categoryId === selectedCategoryId)
-    : items;
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
+  const filtered = items.filter((item) => {
+    const matchesCategory = selectedCategoryId
+      ? item.categoryId === selectedCategoryId
+      : true;
+
+    if (!matchesCategory) return false;
+    if (!normalizedSearchTerm) return true;
+
+    return (
+      item.name.toLowerCase().includes(normalizedSearchTerm) ||
+      (item.sku ?? "").toLowerCase().includes(normalizedSearchTerm)
+    );
+  });
 
   const handleAdd = async (item: MenuItem) => {
     const qty = Math.min(quantities[item.id] ?? 1, item.stockQuantity);
@@ -86,11 +99,19 @@ export default function AddItemModal({ onAdd, onClose }: Props) {
             ))}
           </aside>
 
-          <div className="flex-1 space-y-2 overflow-y-auto p-3">
+          <div className="flex-1 overflow-y-auto p-3">
+            <input
+              className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary"
+              placeholder="Pretrazi po nazivu ili sifri"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+
             {filtered.length === 0 && (
               <p className="p-2 text-sm text-muted-foreground">Nema stavki u ovoj kategoriji.</p>
             )}
 
+            <div className="space-y-2">
             {filtered.map((item) => {
               const selectedQuantity = Math.min(
                 quantities[item.id] ?? 1,
@@ -109,6 +130,9 @@ export default function AddItemModal({ onAdd, onClose }: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-card-foreground">{item.name}</p>
                     <p className="text-sm font-semibold text-primary">{item.price.toFixed(2)} EUR</p>
+                    <p className="text-xs text-muted-foreground">
+                      Sifra: {item.sku || "Nema sifre"}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       Skladiste: {item.stockQuantity}
                     </p>
@@ -160,6 +184,7 @@ export default function AddItemModal({ onAdd, onClose }: Props) {
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
 
