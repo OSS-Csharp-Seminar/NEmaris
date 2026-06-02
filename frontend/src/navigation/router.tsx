@@ -8,7 +8,6 @@ import RegisterPage from "../pages/RegisterPage";
 import ProtectedRoute from "../components/guards/ProtectedRoute";
 import AdminRoute from "../components/guards/AdminRoute";
 import MenuManagementPage from "../pages/MenuManagementPage";
-import MenuBrowsePage from "../pages/MenuBrowsePage";
 import OrdersPage from "../pages/OrdersPage";
 import CashRegisterPage from "../pages/CashRegisterPage";
 
@@ -32,10 +31,6 @@ const router = createBrowserRouter([
           {
             path: "home",
             element: <HomePage />,
-          },
-          {
-            path: "menu/browse",
-            element: <MenuBrowsePage />,
           },
           {
             path: "orders",
