@@ -15,7 +15,11 @@ public class FindReservationsByPhoneTool : IChatTool
     public string Name => "find_my_reservations";
 
     public string Description =>
-        "Look up a guest's UPCOMING active reservations. " +
+        "Look up a guest's CURRENT or UPCOMING reservations (anything whose end time is still " +
+        "in the future, including ones that have already started or where the guests are seated). " +
+        "Each item includes a `status` field: \"Active\" (booked, not yet seated), \"Late\" " +
+        "(guest hasn't shown but the window is still open), or \"Seated\" (guests are at the table). " +
+        "A Seated reservation CANNOT be cancelled or updated — tell the guest to speak with their server. " +
         "Requires both phone number AND last name; both must match the booking. " +
         "Returns an empty list if either does not match — never confirm or deny which one was wrong.";
 
@@ -46,6 +50,7 @@ public class FindReservationsByPhoneTool : IChatTool
                 startTime = r.StartTime,
                 endTime = r.EndTime,
                 partySize = r.PartySize,
+                status = r.Status,
                 specialRequest = r.SpecialRequest
             }).ToList()
         };

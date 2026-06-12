@@ -50,7 +50,8 @@ public class ReservationService : IReservationService
     private static string RequireRealPhone(string? value)
     {
         var trimmed = RequireRealValue(value, "Phone number");
-        var digits = new string(trimmed.Where(char.IsDigit).ToArray());
+        var normalized = PhoneNormalizer.Normalize(trimmed);
+        var digits = new string(normalized.Where(char.IsDigit).ToArray());
 
         if (digits.Length < 7)
             throw new InvalidOperationException($"Phone number '{trimmed}' is too short. Ask the guest for a real phone number.");
@@ -61,7 +62,7 @@ public class ReservationService : IReservationService
         if (IsSequentialDigits(digits))
             throw new InvalidOperationException($"Phone number '{trimmed}' looks like a placeholder. Ask the guest for a real phone number.");
 
-        return trimmed;
+        return normalized;
     }
 
     private static bool IsSequentialDigits(string digits)
@@ -195,7 +196,7 @@ public class ReservationService : IReservationService
 
     public async Task<IReadOnlyList<ReservationResponseDto>> GetReservationsByPhoneAsync(string phone)
     {
-        var normalizedPhone = (phone ?? string.Empty).Trim();
+        var normalizedPhone = PhoneNormalizer.Normalize(phone);
         if (string.IsNullOrWhiteSpace(normalizedPhone))
             throw new InvalidOperationException("Phone number is required.");
 
@@ -205,11 +206,11 @@ public class ReservationService : IReservationService
 
     public async Task<IReadOnlyList<ReservationResponseDto>> GetUpcomingReservationsForGuestAsync(string phone, string lastName)
     {
-        var normalizedPhone = (phone ?? string.Empty).Trim();
+        var normalizedPhone = PhoneNormalizer.Normalize(phone);
         var normalizedLastName = (lastName ?? string.Empty).Trim();
 
         if (string.IsNullOrWhiteSpace(normalizedPhone) || string.IsNullOrWhiteSpace(normalizedLastName) ||
-            IsPlaceholder(normalizedPhone) || IsPlaceholder(normalizedLastName))
+            IsPlaceholder(normalizedLastName))
             return Array.Empty<ReservationResponseDto>();
 
         var reservations = await _reservationRepository.GetUpcomingReservationsByPhoneAndLastNameAsync(
@@ -220,7 +221,7 @@ public class ReservationService : IReservationService
 
     public async Task<ReservationResponseDto> CancelReservationAsync(long id, string phone)
     {
-        var normalizedPhone = RequireRealValue(phone, "Phone number");
+        var normalizedPhone = PhoneNormalizer.Normalize(RequireRealValue(phone, "Phone number"));
 
         var reservation = await _reservationRepository.GetReservationByIdAsync(id);
         if (reservation is null)
@@ -229,11 +230,22 @@ public class ReservationService : IReservationService
         if (!string.Equals(reservation.Guest.Phone, normalizedPhone, StringComparison.Ordinal))
             throw new InvalidOperationException("Phone number does not match the reservation.");
 
-        if (reservation.Status == ReservationStatus.Cancelled)
-            return MapToDto(reservation);
-
-        if (reservation.Status == ReservationStatus.Completed)
-            throw new InvalidOperationException("Cannot cancel a completed reservation.");
+        switch (reservation.Status)
+        {
+            case ReservationStatus.Cancelled:
+                return MapToDto(reservation);
+            case ReservationStatus.Active:
+            case ReservationStatus.Late:
+                break;
+            case ReservationStatus.Seated:
+                throw new InvalidOperationException("Cannot cancel a reservation once the guests have been seated.");
+            case ReservationStatus.Completed:
+                throw new InvalidOperationException("Cannot cancel a completed reservation.");
+            case ReservationStatus.NoShow:
+                throw new InvalidOperationException("Cannot cancel a reservation that was already marked no-show.");
+            default:
+                throw new InvalidOperationException($"Cannot cancel a reservation with status {reservation.Status}.");
+        }
 
         reservation.Status = ReservationStatus.Cancelled;
         reservation.UpdatedAt = DateTime.UtcNow;
@@ -244,7 +256,7 @@ public class ReservationService : IReservationService
 
     public async Task<ReservationResponseDto> UpdateReservationAsync(long id, UpdateReservationDto dto)
     {
-        var normalizedPhone = RequireRealValue(dto.Phone, "Phone number");
+        var normalizedPhone = PhoneNormalizer.Normalize(RequireRealValue(dto.Phone, "Phone number"));
 
         var reservation = await _reservationRepository.GetReservationByIdAsync(id);
         if (reservation is null)

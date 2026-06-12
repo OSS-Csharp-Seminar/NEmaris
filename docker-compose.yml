@@ -32,6 +32,7 @@ services:
       ConnectionStrings__Default: "Server=db;Port=3306;Database=NEmaris;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
       Ollama__BaseUrl: "http://host.docker.internal:11434"
       Ollama__Model: ${OLLAMA_MODEL:-llama3.2}
+      Ollama__NumCtx: ${OLLAMA_NUM_CTX:-16384}
     ports:
       - "5199:8080"
     extra_hosts:

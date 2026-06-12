@@ -43,7 +43,7 @@ public class UpdateReservationTool : IChatTool
         var phone = ToolArgs.GetString(arguments, "phone");
         var currentStart = ToolArgs.GetDateTime(arguments, "startTime");
 
-        var existing = await ReservationLookup.ResolveActiveByPhoneAndStartAsync(_reservationService, phone, currentStart);
+        var existing = await ReservationLookup.ResolveByPhoneAndStartAsync(_reservationService, phone, currentStart);
 
         var dto = new UpdateReservationDto { Phone = phone };
 

@@ -6,5 +6,6 @@ public enum ReservationStatus
     Completed = 1,
     Cancelled = 2,
     NoShow = 3,
-    Late = 4
+    Late = 4,
+    Seated = 5
 }

@@ -6,13 +6,36 @@ interface ChatWidgetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const STORAGE_KEY = "nemaris.chat.messages";
+
+function loadMessages(): ChatMessage[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as ChatMessage[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (messages.length === 0) {
+      window.sessionStorage.removeItem(STORAGE_KEY);
+    } else {
+      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -62,6 +85,12 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     }
   };
 
+  const clearConversation = () => {
+    setMessages([]);
+    setError(null);
+    inputRef.current?.focus();
+  };
+
   if (!open) {
     return null;
   }
@@ -70,14 +99,25 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     <div className="fixed bottom-6 right-6 z-50 flex h-[32rem] w-[22rem] max-w-[calc(100vw-3rem)] flex-col rounded-2xl border border-border bg-card text-card-foreground shadow-xl">
       <div className="flex items-center justify-between border-b border-border p-3">
         <span className="font-medium">Reservations</span>
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          aria-label="Close chat"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          ✕
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={clearConversation}
+            disabled={loading || messages.length === 0}
+            aria-label="Clear conversation"
+            className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground"
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close chat"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-3">

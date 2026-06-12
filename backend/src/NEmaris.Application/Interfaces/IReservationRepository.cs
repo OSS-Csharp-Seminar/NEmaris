@@ -17,5 +17,6 @@ public interface IReservationRepository
     Task<Reservations?> GetReservationByIdAsync(long id);
     Task<IReadOnlyList<Reservations>> GetReservationsByPhoneAsync(string phone);
     Task<IReadOnlyList<Reservations>> GetUpcomingReservationsByPhoneAndLastNameAsync(string phone, string lastName, DateTime asOfUtc);
+    Task<Reservations?> GetActiveReservationForTableCoveringAsync(long tableId, DateTime asOfUtc);
     Task UpdateReservationAsync(Reservations reservation);
 }

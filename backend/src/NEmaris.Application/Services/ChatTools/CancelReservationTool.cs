@@ -34,7 +34,7 @@ public class CancelReservationTool : IChatTool
         var phone = ToolArgs.GetString(arguments, "phone");
         var startTime = ToolArgs.GetDateTime(arguments, "startTime");
 
-        var existing = await ReservationLookup.ResolveActiveByPhoneAndStartAsync(_reservationService, phone, startTime);
+        var existing = await ReservationLookup.ResolveByPhoneAndStartAsync(_reservationService, phone, startTime);
         var cancelled = await _reservationService.CancelReservationAsync(existing.Id, phone);
 
         var summary = new

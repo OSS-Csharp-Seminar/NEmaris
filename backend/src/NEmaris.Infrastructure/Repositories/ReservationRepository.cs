@@ -151,10 +151,26 @@ public class ReservationRepository : IReservationRepository
             .Where(r =>
                 r.Guest.Phone == phone &&
                 r.Guest.LastName.ToLower() == normalizedLastName &&
-                r.Status == ReservationStatus.Active &&
-                r.StartTime >= asOfUtc)
+                (r.Status == ReservationStatus.Active ||
+                 r.Status == ReservationStatus.Late ||
+                 r.Status == ReservationStatus.Seated) &&
+                r.EndTime > asOfUtc)
             .OrderBy(r => r.StartTime)
             .ToListAsync();
+    }
+
+    public async Task<Reservations?> GetActiveReservationForTableCoveringAsync(long tableId, DateTime asOfUtc)
+    {
+        return await _context.Reservations
+            .Include(r => r.Guest)
+            .Include(r => r.Table)
+            .Where(r =>
+                r.TableId == tableId &&
+                (r.Status == ReservationStatus.Active || r.Status == ReservationStatus.Late) &&
+                r.StartTime <= asOfUtc &&
+                asOfUtc < r.EndTime)
+            .OrderBy(r => r.StartTime)
+            .FirstOrDefaultAsync();
     }
 
     public async Task UpdateReservationAsync(Reservations reservation)

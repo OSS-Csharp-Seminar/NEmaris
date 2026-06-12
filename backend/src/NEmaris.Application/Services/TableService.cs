@@ -129,6 +129,18 @@ public class TableService : ITableService
         table.UpdatedAt = DateTime.UtcNow;
 
         await _tableRepository.UpdateAsync(table);
+
+        var now = DateTime.UtcNow;
+        var reservation = await _reservationRepository.GetActiveReservationForTableCoveringAsync(id, now);
+        ReservationStatus? previousReservationStatus = null;
+        if (reservation is not null)
+        {
+            previousReservationStatus = reservation.Status;
+            reservation.Status = ReservationStatus.Seated;
+            reservation.UpdatedAt = now;
+            await _reservationRepository.UpdateReservationAsync(reservation);
+        }
+
         try
         {
             await _orderService.CreateOrderAsync(new CreateOrderDto { TableId = id }, waiterUserId);
@@ -138,6 +150,14 @@ public class TableService : ITableService
             table.Status = TableStatus.Reserved;
             table.UpdatedAt = DateTime.UtcNow;
             await _tableRepository.UpdateAsync(table);
+
+            if (reservation is not null && previousReservationStatus.HasValue)
+            {
+                reservation.Status = previousReservationStatus.Value;
+                reservation.UpdatedAt = DateTime.UtcNow;
+                await _reservationRepository.UpdateReservationAsync(reservation);
+            }
+
             throw;
         }
 

@@ -12,6 +12,7 @@ MYSQL_ROOT_PASSWORD=        # your root password
 MYSQL_USER=                 # your db username
 MYSQL_PASSWORD=             # your db password
 OLLAMA_MODEL=llama3.2       # optional — pick whichever model your machine can run
+OLLAMA_NUM_CTX=16384        # optional — Ollama context window in tokens (default 16384)
 ```
 
 Install [Ollama](https://ollama.com/download) on your host (not in Docker — Docker
@@ -27,6 +28,30 @@ ollama pull qwen2.5:7b        # 7B, similar footprint, often better at tools
 If `OLLAMA_MODEL` is not set in `.env`, the backend falls back to `llama3.2`.
 Each developer can set a different model in their own `.env` without touching
 committed code.
+
+### Context window (`OLLAMA_NUM_CTX`)
+
+Ollama uses each model's compiled default context window (often 4096 tokens),
+which is too small for the reservations chat: the system prompt + tool schemas
++ a few turns of conversation + tool results push the system instructions out
+of the window, and the model starts "forgetting" the rules mid-flow.
+
+The backend therefore sets `num_ctx` explicitly. The default is `16384`, which
+fits comfortably on a 16 GB GPU (model ≈ 7 GB + KV cache ≈ 2–3 GB for a 9B
+model). On machines with less headroom — e.g. an M3 Pro with 18 GB unified
+memory shared with the OS and other apps — drop it:
+
+```bash
+OLLAMA_NUM_CTX=8192
+```
+
+Verify what Ollama actually loaded after restarting the backend:
+
+```bash
+ollama ps    # the CONTEXT column should match OLLAMA_NUM_CTX
+```
+
+Changing `num_ctx` triggers a model reload on the next request.
 
 ---
 
