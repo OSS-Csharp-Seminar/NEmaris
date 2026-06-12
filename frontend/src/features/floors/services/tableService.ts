@@ -100,13 +100,8 @@ function mapFloors(tables: ApiRestaurantTable[]): RestaurantFloor[] {
 
 const tableService = {
   async getFloors(): Promise<RestaurantFloor[]> {
-    try {
-      const response = await api.get<ApiRestaurantTable[]>("/table-layout/tables");
-      return mapFloors(response.data);
-    } catch {
-      const response = await api.get<ApiRestaurantTable[]>("/tables");
-      return mapFloors(response.data);
-    }
+    const response = await api.get<ApiRestaurantTable[]>("/tables");
+    return mapFloors(response.data);
   },
 
   async changeGuestCount(tableId: string, change: -1 | 1): Promise<RestaurantTable> {
