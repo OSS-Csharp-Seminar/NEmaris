@@ -13,6 +13,7 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   reply: string;
+  reservationsChanged?: boolean;
 }
 
 function detectTimeZone(): string | undefined {

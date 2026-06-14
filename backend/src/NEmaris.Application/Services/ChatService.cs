@@ -210,6 +210,7 @@ public class ChatService : IChatService
         var toolNamesCalled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var phonesProvided = ExtractPhonesProvided(request.Messages);
         var wordsProvided = ExtractWordsProvided(request.Messages);
+        var reservationsChanged = false;
 
         for (var iteration = 0; iteration < _options.MaxToolIterations; iteration++)
         {
@@ -217,7 +218,11 @@ public class ChatService : IChatService
             assistant.Content = StripThinking(assistant.Content);
 
             if (assistant.ToolCalls is null || assistant.ToolCalls.Count == 0)
-                return new ChatResponseDto { Reply = GuardHallucinatedSuccess(assistant.Content, toolNamesCalled) };
+                return new ChatResponseDto
+                {
+                    Reply = GuardHallucinatedSuccess(assistant.Content, toolNamesCalled),
+                    ReservationsChanged = reservationsChanged
+                };
 
             messages.Add(assistant);
 
@@ -259,6 +264,8 @@ public class ChatService : IChatService
                 else
                 {
                     result = await ExecuteToolAsync(toolsByName, call.Name, effectiveArguments, cancellationToken);
+                    if (IsMutatingTool(call.Name) && !IsErrorResult(result))
+                        reservationsChanged = true;
                 }
 
                 if (DiagnosticsEnabled)
@@ -286,8 +293,26 @@ public class ChatService : IChatService
 
         return new ChatResponseDto
         {
-            Reply = "I wasn't able to complete that request. Please try rephrasing or contact the restaurant directly."
+            Reply = "I wasn't able to complete that request. Please try rephrasing or contact the restaurant directly.",
+            ReservationsChanged = reservationsChanged
         };
+    }
+
+    private static bool IsMutatingTool(string toolName) =>
+        toolName is "create_reservation" or "cancel_reservation" or "update_reservation";
+
+    private static bool IsErrorResult(string resultJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(resultJson);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("error", out _);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static async Task<string> ExecuteToolAsync(

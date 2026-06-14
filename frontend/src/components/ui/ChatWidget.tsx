@@ -8,6 +8,7 @@ interface ChatWidgetProps {
 
 const STORAGE_KEY = "nemaris.chat.messages";
 const SESSION_KEY = "nemaris.chat.sessionId";
+export const RESERVATIONS_CHANGED_EVENT = "nemaris:reservations-changed";
 
 function loadMessages(): ChatMessage[] {
   if (typeof window === "undefined") return [];
@@ -74,6 +75,9 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     try {
       const { data } = await chatService.send({ messages: nextMessages, sessionId });
       setMessages([...nextMessages, { role: "assistant", content: data.reply }]);
+      if (data.reservationsChanged && typeof window !== "undefined") {
+        window.dispatchEvent(new Event(RESERVATIONS_CHANGED_EVENT));
+      }
     } catch (e: unknown) {
       const status =
         typeof e === "object" && e && "response" in e

@@ -8,6 +8,7 @@ import orderService from "../services/orderService";
 import type { RestaurantFloor } from "../features/floors/types/floor";
 import type { Order } from "../types/order";
 import { useAuth } from "../context/useAuth";
+import { RESERVATIONS_CHANGED_EVENT } from "../components/ui/ChatWidget";
 
 export default function HomePage() {
   const { isAdmin } = useAuth();
@@ -58,6 +59,12 @@ export default function HomePage() {
       ignore = true;
     };
   }, [refreshKey]);
+
+  useEffect(() => {
+    const handler = () => setRefreshKey((k) => k + 1);
+    window.addEventListener(RESERVATIONS_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(RESERVATIONS_CHANGED_EVENT, handler);
+  }, []);
 
   return (
     <div className="flex h-full min-h-0 flex-col rounded-lg border border-border bg-background p-4">

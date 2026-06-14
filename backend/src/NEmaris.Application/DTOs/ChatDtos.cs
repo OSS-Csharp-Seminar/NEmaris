@@ -22,4 +22,5 @@ public class ChatMessageDto
 public class ChatResponseDto
 {
     public string Reply { get; set; } = string.Empty;
+    public bool ReservationsChanged { get; set; }
 }
