@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import LoginForm from "../components/ui/LoginForm";
 import publicOverviewService, {
   type PublicOverview,
 } from "../services/publicOverviewService";
+import { useAuth } from "../context/useAuth";
 
 const emptyOverview: PublicOverview = {
   totalTables: 0,
@@ -17,6 +19,14 @@ export default function LoginPage() {
   const [overview, setOverview] = useState<PublicOverview>(emptyOverview);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      navigate("/home", { replace: true });
+    }
+  }, [isAuthLoading, isAuthenticated, navigate]);
 
   useEffect(() => {
     const loadOverview = async () => {
