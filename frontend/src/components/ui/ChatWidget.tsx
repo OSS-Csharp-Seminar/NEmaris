@@ -7,6 +7,7 @@ interface ChatWidgetProps {
 }
 
 const STORAGE_KEY = "nemaris.chat.messages";
+const SESSION_KEY = "nemaris.chat.sessionId";
 
 function loadMessages(): ChatMessage[] {
   if (typeof window === "undefined") return [];
@@ -20,8 +21,18 @@ function loadMessages(): ChatMessage[] {
   }
 }
 
+function loadSessionId(): string {
+  if (typeof window === "undefined") return crypto.randomUUID();
+  const existing = window.sessionStorage.getItem(SESSION_KEY);
+  if (existing) return existing;
+  const fresh = crypto.randomUUID();
+  window.sessionStorage.setItem(SESSION_KEY, fresh);
+  return fresh;
+}
+
 export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
+  const [sessionId, setSessionId] = useState<string>(loadSessionId);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +72,7 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     setError(null);
 
     try {
-      const { data } = await chatService.send({ messages: nextMessages });
+      const { data } = await chatService.send({ messages: nextMessages, sessionId });
       setMessages([...nextMessages, { role: "assistant", content: data.reply }]);
     } catch (e: unknown) {
       const status =
@@ -88,6 +99,11 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
   const clearConversation = () => {
     setMessages([]);
     setError(null);
+    const fresh = crypto.randomUUID();
+    setSessionId(fresh);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(SESSION_KEY, fresh);
+    }
     inputRef.current?.focus();
   };
 

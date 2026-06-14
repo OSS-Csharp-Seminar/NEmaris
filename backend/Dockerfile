@@ -15,7 +15,7 @@ RUN dotnet restore
 # Copy everything else and publish
 COPY . .
 RUN dotnet clean src/NEmaris.API/NEmaris.API.csproj -c Release
-RUN dotnet publish src/NEmaris.API/NEmaris.API.csproj -c Release -o /app/publish /p:UseSharedCompilation=false /p:Deterministic=false
+RUN dotnet publish src/NEmaris.API/NEmaris.API.csproj -c Release -o /app/publish --no-restore /p:UseSharedCompilation=false /p:Deterministic=false
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

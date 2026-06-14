@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -9,6 +10,9 @@ namespace NEmaris.Infrastructure.Services;
 
 public class OllamaClient : IOllamaClient
 {
+    private const int MaxAttempts = 8;
+    private const double RetryTemperature = 0.2;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -30,39 +34,7 @@ public class OllamaClient : IOllamaClient
         IReadOnlyList<OllamaToolDefinition> tools,
         CancellationToken cancellationToken = default)
     {
-        var request = new
-        {
-            model = _options.Model,
-            stream = false,
-            think = false,
-            options = new
-            {
-                temperature = _options.Temperature,
-                num_ctx = _options.NumCtx
-            },
-            messages = messages.Select(m => new
-            {
-                role = m.Role,
-                content = m.Content
-            }).ToList(),
-            tools = tools.Select(t => new
-            {
-                type = "function",
-                function = new
-                {
-                    name = t.Name,
-                    description = t.Description,
-                    parameters = t.Parameters
-                }
-            }).ToList()
-        };
-
-        var response = await _httpClient.PostAsJsonAsync("/api/chat", request, JsonOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var payload = await response.Content.ReadFromJsonAsync<OllamaChatResponse>(JsonOptions, cancellationToken)
-            ?? throw new InvalidOperationException("Empty response from Ollama.");
-
+        var payload = await PostWithRetryAsync(messages, tools, cancellationToken);
         var message = payload.Message ?? throw new InvalidOperationException("Ollama response missing message.");
 
         var toolCalls = message.ToolCalls?
@@ -80,6 +52,91 @@ public class OllamaClient : IOllamaClient
             ToolCalls = toolCalls is { Count: > 0 } ? toolCalls : null
         };
     }
+
+    private async Task<OllamaChatResponse> PostWithRetryAsync(
+        IReadOnlyList<OllamaChatMessage> messages,
+        IReadOnlyList<OllamaToolDefinition> tools,
+        CancellationToken cancellationToken)
+    {
+        HttpRequestException? lastException = null;
+
+        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        {
+            var temperature = attempt == 1 ? _options.Temperature : RetryTemperature;
+
+            var request = BuildRequest(messages, tools, temperature);
+
+            using var response = await _httpClient.PostAsJsonAsync("/api/chat", request, JsonOptions, cancellationToken);
+
+            if (response.StatusCode == HttpStatusCode.InternalServerError)
+            {
+                Console.WriteLine($"[ollama-retry] attempt {attempt} got 500 at temp={temperature:0.00}");
+                lastException = new HttpRequestException(
+                    $"Ollama returned 500 on attempt {attempt}.",
+                    null,
+                    HttpStatusCode.InternalServerError);
+
+                if (attempt < MaxAttempts)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), cancellationToken);
+                    continue;
+                }
+                break;
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<OllamaChatResponse>(JsonOptions, cancellationToken)
+                ?? throw new InvalidOperationException("Empty response from Ollama.");
+        }
+
+        if (tools.Count > 0)
+        {
+            Console.WriteLine("[ollama-retry] all attempts failed; attempting no-tools fallback");
+            var fallbackRequest = BuildRequest(messages, Array.Empty<OllamaToolDefinition>(), RetryTemperature);
+            using var fallbackResponse = await _httpClient.PostAsJsonAsync("/api/chat", fallbackRequest, JsonOptions, cancellationToken);
+            if (fallbackResponse.IsSuccessStatusCode)
+            {
+                Console.WriteLine("[ollama-retry] no-tools fallback succeeded");
+                return await fallbackResponse.Content.ReadFromJsonAsync<OllamaChatResponse>(JsonOptions, cancellationToken)
+                    ?? throw new InvalidOperationException("Empty response from Ollama fallback.");
+            }
+            Console.WriteLine($"[ollama-retry] no-tools fallback also failed with {(int)fallbackResponse.StatusCode}");
+        }
+
+        if (lastException is not null) throw lastException;
+        throw new InvalidOperationException("Ollama call failed after retries with no captured exception.");
+    }
+
+    private object BuildRequest(
+        IReadOnlyList<OllamaChatMessage> messages,
+        IReadOnlyList<OllamaToolDefinition> tools,
+        double temperature) => new
+    {
+        model = _options.Model,
+        stream = false,
+        think = false,
+        options = new
+        {
+            temperature,
+            num_ctx = _options.NumCtx
+        },
+        messages = messages.Select(m => new
+        {
+            role = m.Role,
+            content = m.Content
+        }).ToList(),
+        tools = tools.Select(t => new
+        {
+            type = "function",
+            function = new
+            {
+                name = t.Name,
+                description = t.Description,
+                parameters = t.Parameters
+            }
+        }).ToList()
+    };
 
     private sealed class OllamaChatResponse
     {

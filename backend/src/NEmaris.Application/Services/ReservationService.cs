@@ -67,19 +67,30 @@ public class ReservationService : IReservationService
 
     private static bool IsSequentialDigits(string digits)
     {
-        if (digits.Length < 7) return false;
-        var ascending = true;
-        var descending = true;
-        for (var i = 1; i < digits.Length; i++)
+        const int window = 7;
+        if (digits.Length < window) return false;
+        for (var start = 0; start <= digits.Length - window; start++)
         {
-            if (digits[i] - digits[i - 1] != 1) ascending = false;
-            if (digits[i - 1] - digits[i] != 1) descending = false;
+            var ascending = true;
+            var descending = true;
+            for (var i = start + 1; i < start + window; i++)
+            {
+                if (digits[i] - digits[i - 1] != 1) ascending = false;
+                if (digits[i - 1] - digits[i] != 1) descending = false;
+            }
+            if (ascending || descending) return true;
         }
-        return ascending || descending;
+        return false;
     }
 
     private static void RejectPlaceholderNamePair(string firstName, string lastName)
     {
+        if (string.Equals(firstName, lastName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                $"First name '{firstName}' and last name '{lastName}' are identical. " +
+                "This looks like a name was duplicated instead of asking the guest for their first name. " +
+                "Ask the guest for their first name explicitly.");
+
         var combined = $"{firstName} {lastName}".Trim();
         if (PlaceholderNames.Contains(combined))
             throw new InvalidOperationException($"Name '{combined}' looks like a placeholder. Ask the guest for their real name.");
@@ -92,6 +103,9 @@ public class ReservationService : IReservationService
 
         if (dto.EndTime <= dto.StartTime)
             throw new InvalidOperationException("End time must be later than start time.");
+
+        if (dto.StartTime < DateTime.UtcNow.AddMinutes(-1))
+            throw new InvalidOperationException("Start time is already in the past. Ask the guest for a future time (for example the same time tomorrow).");
 
         if (dto.PartySize <= 0)
             throw new InvalidOperationException("Party size must be greater than zero.");
@@ -178,6 +192,9 @@ public class ReservationService : IReservationService
 
         if (query.EndTime <= query.StartTime)
             throw new InvalidOperationException("End time must be later than start time.");
+
+        if (query.StartTime < DateTime.UtcNow.AddMinutes(-1))
+            throw new InvalidOperationException("Start time is already in the past. Ask the guest for a future time (for example the same time tomorrow).");
 
         if (query.PartySize <= 0)
             throw new InvalidOperationException("Party size must be greater than zero.");

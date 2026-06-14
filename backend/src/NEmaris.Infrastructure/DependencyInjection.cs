@@ -45,7 +45,10 @@ public static class DependencyInjection
 
         services.Configure<OllamaOptions>(config.GetSection(OllamaOptions.SectionName));
         services.Configure<TaxOptions>(config.GetSection(TaxOptions.SectionName));
-        services.AddHttpClient<IOllamaClient, OllamaClient>();
+        services.AddHttpClient<IOllamaClient, OllamaClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(3);
+        });
 
         return services;
     }

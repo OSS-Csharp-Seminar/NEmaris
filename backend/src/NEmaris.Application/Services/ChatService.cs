@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using NEmaris.Application.Configuration;
@@ -32,16 +34,39 @@ public class ChatService : IChatService
         $"You are the reservations assistant for the NEmaris restaurant. " +
         "Help guests check availability, create, find, update, and cancel reservations using the provided tools.\n\n" +
         timeContext +
-        "\n\nResolving relative times — these phrases are COMPLETE; they already pin the date and time. " +
-        "When the guest uses one of these, you ALREADY HAVE the startTime. Do NOT ask \"what date?\", " +
-        "\"is that tonight?\", or \"could you confirm the date and time?\". Do NOT echo the time back as a question. " +
-        "Just resolve it and CALL get_available_tables in the same turn:\n" +
-        $"- \"now\" / \"right now\" → startTime = {nowUtcIso}\n" +
-        $"- \"in 5 minutes\" / \"in about 5 minutes\" / \"in roughly 10 minutes\" / \"in a few minutes\" / \"in an hour\" → startTime = current UTC + that offset (e.g. \"in 5 minutes\" → {inFiveUtcIso}). Treat \"about\", \"roughly\", \"around\", \"a few\" as exact for tool purposes.\n" +
-        "- \"tonight at 8pm\" → today's date at 20:00 local, converted to UTC\n" +
-        "- \"tomorrow at 7pm\" → tomorrow's date at 19:00 local, converted to UTC\n" +
-        "- \"next Friday at 19:00\" → the next Friday after the current date, at 19:00 local, converted to UTC\n" +
-        "Never guess the date or time — derive it from the clock above. If the guest gives only a clock time (\"7pm\") with NO day reference at all, ask whether they mean today or tomorrow.\n\n" +
+        "\n\nFIRST TURN — PARSE THE GUEST'S OPENER FOR FIELDS THEY ALREADY GAVE.\n" +
+        "Before responding, scan the guest's message for: partySize, time phrase, firstName, lastName, phone. " +
+        "A time phrase ALWAYS counts as a provided startTime — these phrases ARE the time, even when terse:\n" +
+        "  • \"now\" / \"right now\"\n" +
+        "  • \"in N minutes\" / \"in N hours\" — any integer N. \"in 5 minutes\", \"in 30 minutes\", \"in 90 minutes\", \"in 2 hours\", etc.\n" +
+        "  • \"in half an hour\" / \"in an hour\" / \"in a few minutes\"\n" +
+        "  • Hedged variants with \"about\", \"around\", \"roughly\" — treat as exact\n" +
+        "  • \"tonight at 8pm\" / \"tomorrow at 7pm\" / \"next Friday at 19:00\"\n" +
+        "If the guest's first message contains a phrase from this list, your FIRST action MUST be a single call to " +
+        "resolve_time. Do NOT write \"I'd be happy to help\". Do NOT write \"To get started, I need to know\". " +
+        "Do NOT enumerate what you need. Do NOT ask \"what time?\" or \"when would you like?\". Do NOT respond with prose. " +
+        "The time IS in the guest's message — call the tool. Treat the absence of a tool call as a bug.\n\n" +
+        "WORKED EXAMPLE.\n" +
+        "  Guest: \"Hi, I'd like to reserve a table for 4 in 90 minutes.\"\n" +
+        "  Correct first action: tool call resolve_time(offsetMinutes=90). No prose. No \"I'd be happy to help\".\n" +
+        "  Incorrect: any text reply asking for the time, listing example times, or saying \"I need to know\".\n\n" +
+        "Resolving times — DO NOT DO THE TIME ARITHMETIC YOURSELF. Use the resolve_time tool instead.\n" +
+        "Whenever the guest gives any time phrase (relative or absolute), call resolve_time FIRST. It returns a " +
+        "field called startTimeUtc — copy that string VERBATIM into get_available_tables, create_reservation, " +
+        "or any other tool that needs startTime. Do not recompute the UTC value, do not adjust it, do not pass a " +
+        "different value to different tools in the same conversation. The same startTimeUtc must appear in every " +
+        "tool call that references that booking.\n" +
+        "How to call resolve_time:\n" +
+        "- Relative phrases (\"now\", \"in 5 minutes\", \"in 90 minutes\", \"in an hour\", \"in 2 hours\", " +
+        "\"in half an hour\", \"in a few minutes\", with hedges like \"about\"/\"around\"/\"roughly\"): pass " +
+        "offsetMinutes as an integer. \"now\" = 0, \"in 5 minutes\" = 5, \"in half an hour\" = 30, \"in an hour\" " +
+        "= 60, \"in 90 minutes\" = 90, \"in 2 hours\" = 120. Treat hedges as exact.\n" +
+        "- Absolute clock phrases (\"tonight at 8pm\", \"tomorrow at 7pm\", \"next Friday at 19:00\", \"today at " +
+        "noon\"): pass localClock = {day, hour, minute}. day is \"today\", \"tomorrow\", or a weekday name. " +
+        "hour is 0-23 (8pm=20, noon=12, midnight=0). minute defaults to 0.\n" +
+        "These phrases are COMPLETE — do NOT ask the guest \"what date?\", \"could you confirm the time?\", or " +
+        "echo the time back as a question. Call resolve_time, then proceed.\n" +
+        "If the guest gives ONLY a clock time with NO day reference (\"7pm\" alone), ask whether they mean today or tomorrow.\n\n" +
         "Act, don't confirm — when you have everything you need to call a tool (partySize + startTime for availability; " +
         "all required fields for create_reservation), CALL THE TOOL in this turn. Do not write a message that " +
         "rephrases what the guest said, asks them to \"please confirm\", or lists the values back for verification " +
@@ -49,9 +74,12 @@ public class ChatService : IChatService
         "The only valid reasons to send a text-only reply are: (a) a required field is missing, or (b) a tool just returned and you are relaying its result to the guest.\n\n" +
         "Reservation conversation order — follow these steps in this exact sequence. Do NOT skip ahead and " +
         "do NOT call any tool until the step's requirement is met:\n" +
-        "1. Ask for partySize if missing.\n" +
-        "2. Ask for the desired startTime (\"for when?\") if missing — you MUST have an explicit guest-provided time " +
-        "before step 3. Never invent a default time.\n" +
+        "1. Ask for partySize ONLY if the guest's messages contain no party size. A number like \"4\" or \"for 6 people\" " +
+        "counts as provided.\n" +
+        "2. Ask for the desired startTime ONLY if the guest's messages contain NO time phrase at all. \"In 5 minutes\", " +
+        "\"in 90 minutes\", \"in 2 hours\", \"tonight at 8\", \"tomorrow at 7pm\", \"now\" — every one of these is a " +
+        "PROVIDED startTime. If the guest said any of them, do NOT ask \"for when?\" — call resolve_time directly. " +
+        "Never invent a default time, but also never re-ask for a time the guest already gave.\n" +
         "3. Call get_available_tables with partySize and startTime, then show the list.\n" +
         "4. Let the guest pick a tableNumber from the list.\n" +
         "5. Ask for firstName, lastName, and phone if any are missing.\n" +
@@ -93,6 +121,17 @@ public class ChatService : IChatService
         "and do NOT use a wall-clock minute like \"19:28\" — the stored time has seconds and must be copied verbatim " +
         "from the find result. If you have not yet called find_my_reservations in this conversation, call it FIRST " +
         "and only then call cancel_reservation or update_reservation.\n" +
+        "- HARD RULE — must call a tool: when the guest asks to cancel, update, find, or look up a reservation, " +
+        "you MUST call a tool in this turn before replying. NEVER write \"I couldn't find\", \"I cannot cancel\", " +
+        "\"the reservation doesn't exist\", \"there is no record\", or any similar denial from text alone. Those " +
+        "statements are ONLY valid AFTER find_my_reservations returned count=0 in this turn OR cancel_reservation " +
+        "threw not_found in this turn. Until a tool has actually run in the CURRENT turn, you have no authority to " +
+        "claim a reservation is missing — call the tool first, then reply based on its real result.\n" +
+        "- HARD RULE — refuse past times: the clock at the top of this prompt is authoritative. If the startTime " +
+        "you would resolve for the guest is earlier than that clock (i.e. already in the past), do NOT call " +
+        "get_available_tables and do NOT call create_reservation. Instead, tell the guest that time has already " +
+        "passed and ask if they meant the same time tomorrow (or some future time). Only proceed once the guest " +
+        "confirms a startTime that is strictly in the future.\n" +
         "- Time arguments are full ISO 8601 datetimes like \"2026-05-10T19:00:00\". " +
         "Prefer durationMinutes (e.g. 90) over endTime; never pass a bare time like \"19:00\".\n\n" +
         "Talking to the guest:\n" +
@@ -101,10 +140,13 @@ public class ChatService : IChatService
         "- When create_reservation returns a \"confirmation\" field, your reply MUST contain that confirmation string " +
         "verbatim. Do not paraphrase the date, times, table, or party size — copy the confirmation sentence as-is. " +
         "You may add a brief friendly closing after it, but never alter the confirmation itself.\n" +
-        "- NEVER claim you have reserved, booked, confirmed, or saved anything unless you actually called " +
-        "create_reservation in this turn AND it returned a confirmation field. If you have not called the tool, " +
-        "do not write phrases like \"I've reserved\", \"booked\", \"your reservation is confirmed\", or \"all set\". " +
-        "Instead, say what is still missing and ask the guest for it.\n" +
+        "- NEVER claim you have reserved, booked, confirmed, cancelled, updated, or saved anything unless you " +
+        "actually called the corresponding tool (create_reservation, cancel_reservation, update_reservation) in " +
+        "this turn AND it returned a success result. Do not write phrases like \"I've reserved\", \"booked\", " +
+        "\"your reservation is confirmed\", \"all set\", \"I'll cancel it for you now\", \"I'm going to cancel it\", " +
+        "or \"the cancellation has gone through\" unless the tool has already run in THIS turn and returned. " +
+        "Announcing intent (\"I'll cancel for you\") is forbidden — call the tool first, then report what it " +
+        "returned. If the tool hasn't returned yet, you have nothing to announce.\n" +
         "- Refer to tables by tableNumber (e.g. \"T2\"), never by any internal id. " +
         "Refer to reservations by table + date/time. NEVER mention numeric ids or reservation numbers. " +
         "If asked for a reservation number, say we identify reservations by phone and time.\n" +
@@ -120,17 +162,20 @@ public class ChatService : IChatService
     private readonly IEnumerable<IChatTool> _tools;
     private readonly OllamaOptions _options;
     private readonly IRequestTimeZoneContext _timeZoneContext;
+    private readonly IConversationStateStore _stateStore;
 
     public ChatService(
         IOllamaClient ollama,
         IEnumerable<IChatTool> tools,
         IOptions<OllamaOptions> options,
-        IRequestTimeZoneContext timeZoneContext)
+        IRequestTimeZoneContext timeZoneContext,
+        IConversationStateStore stateStore)
     {
         _ollama = ollama;
         _tools = tools;
         _options = options.Value;
         _timeZoneContext = timeZoneContext;
+        _stateStore = stateStore;
     }
 
     public async Task<ChatResponseDto> ChatAsync(ChatRequestDto request, CancellationToken cancellationToken)
@@ -159,19 +204,78 @@ public class ChatService : IChatService
             });
         }
 
+        var sessionId = string.IsNullOrWhiteSpace(request.SessionId) ? null : request.SessionId.Trim();
+        var sessionState = sessionId is not null ? _stateStore.GetOrCreate(sessionId) : new ConversationState();
+        var lastResolvedStartTimeUtc = sessionState.LastResolvedStartTimeUtc;
+        var toolNamesCalled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var phonesProvided = ExtractPhonesProvided(request.Messages);
+        var wordsProvided = ExtractWordsProvided(request.Messages);
+
         for (var iteration = 0; iteration < _options.MaxToolIterations; iteration++)
         {
             var assistant = await _ollama.ChatAsync(messages, toolDefinitions, cancellationToken);
             assistant.Content = StripThinking(assistant.Content);
 
             if (assistant.ToolCalls is null || assistant.ToolCalls.Count == 0)
-                return new ChatResponseDto { Reply = assistant.Content };
+                return new ChatResponseDto { Reply = GuardHallucinatedSuccess(assistant.Content, toolNamesCalled) };
 
             messages.Add(assistant);
 
             foreach (var call in assistant.ToolCalls)
             {
-                var result = await ExecuteToolAsync(toolsByName, call, cancellationToken);
+                toolNamesCalled.Add(call.Name);
+                var effectiveArguments = call.Arguments;
+                string? overrideNote = null;
+
+                if (NeedsStartTime(call.Name) && lastResolvedStartTimeUtc is not null)
+                {
+                    var llmPassed = TryGetStringProperty(call.Arguments, "startTime");
+                    if (!string.Equals(llmPassed, lastResolvedStartTimeUtc, StringComparison.Ordinal))
+                    {
+                        effectiveArguments = OverrideStartTime(call.Arguments, lastResolvedStartTimeUtc);
+                        overrideNote = $" [override: startTime {llmPassed ?? "<missing>"} → {lastResolvedStartTimeUtc}]";
+                    }
+                }
+
+                if (DiagnosticsEnabled)
+                    Console.WriteLine($"[chat-diag] tool={call.Name} args={effectiveArguments.GetRawText()}{overrideNote}");
+
+                string result;
+                if (call.Name == "create_reservation" && !IsPhoneFromGuest(effectiveArguments, phonesProvided))
+                {
+                    var llmPhone = TryGetStringProperty(effectiveArguments, "phone") ?? "<missing>";
+                    result = $"{{\"error\":\"invalid\",\"message\":\"Phone number '{llmPhone}' was not provided by the guest in this conversation. Ask the guest for their actual phone number before creating the reservation.\"}}";
+                    if (DiagnosticsEnabled)
+                        Console.WriteLine($"[chat-diag] guard: rejected hallucinated phone '{llmPhone}' on create_reservation");
+                }
+                else if (call.Name == "create_reservation" && FindHallucinatedNameField(effectiveArguments, wordsProvided) is { } badField)
+                {
+                    var llmName = TryGetStringProperty(effectiveArguments, badField) ?? "<missing>";
+                    var humanLabel = badField == "firstName" ? "first name" : "last name";
+                    result = $"{{\"error\":\"invalid\",\"message\":\"{humanLabel.Substring(0,1).ToUpper()}{humanLabel.Substring(1)} '{llmName}' was not provided by the guest in this conversation. Ask the guest for their actual {humanLabel} before creating the reservation.\"}}";
+                    if (DiagnosticsEnabled)
+                        Console.WriteLine($"[chat-diag] guard: rejected hallucinated {humanLabel} '{llmName}' on create_reservation");
+                }
+                else
+                {
+                    result = await ExecuteToolAsync(toolsByName, call.Name, effectiveArguments, cancellationToken);
+                }
+
+                if (DiagnosticsEnabled)
+                    Console.WriteLine($"[chat-diag] tool={call.Name} result={Truncate(result, 400)}");
+
+                if (call.Name == "resolve_time")
+                {
+                    var newUtc = ExtractStartTimeUtc(result);
+                    if (newUtc is not null)
+                    {
+                        lastResolvedStartTimeUtc = newUtc;
+                        sessionState.LastResolvedStartTimeUtc = newUtc;
+                        if (sessionId is not null)
+                            _stateStore.Save(sessionId, sessionState);
+                    }
+                }
+
                 messages.Add(new OllamaChatMessage
                 {
                     Role = "tool",
@@ -188,15 +292,16 @@ public class ChatService : IChatService
 
     private static async Task<string> ExecuteToolAsync(
         IReadOnlyDictionary<string, IChatTool> toolsByName,
-        OllamaToolCall call,
+        string name,
+        JsonElement arguments,
         CancellationToken cancellationToken)
     {
-        if (!toolsByName.TryGetValue(call.Name, out var tool))
-            return $"{{\"error\":\"Unknown tool '{call.Name}'.\"}}";
+        if (!toolsByName.TryGetValue(name, out var tool))
+            return $"{{\"error\":\"Unknown tool '{name}'.\"}}";
 
         try
         {
-            return await tool.ExecuteAsync(call.Arguments, cancellationToken);
+            return await tool.ExecuteAsync(arguments, cancellationToken);
         }
         catch (KeyNotFoundException ex)
         {
@@ -212,14 +317,174 @@ public class ChatService : IChatService
         }
     }
 
+    private static bool NeedsStartTime(string toolName) =>
+        toolName is "get_available_tables" or "create_reservation";
+
+    private static string? TryGetStringProperty(JsonElement element, string name)
+    {
+        if (element.ValueKind != JsonValueKind.Object) return null;
+        if (!element.TryGetProperty(name, out var prop)) return null;
+        return prop.ValueKind == JsonValueKind.String ? prop.GetString() : null;
+    }
+
+    private static JsonElement OverrideStartTime(JsonElement original, string startTimeUtc)
+    {
+        var node = JsonNode.Parse(original.GetRawText()) as JsonObject ?? new JsonObject();
+        node["startTime"] = startTimeUtc;
+        using var doc = JsonDocument.Parse(node.ToJsonString());
+        return doc.RootElement.Clone();
+    }
+
+    private static string? ExtractStartTimeUtc(string toolResultJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(toolResultJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return null;
+            if (!doc.RootElement.TryGetProperty("startTimeUtc", out var prop)) return null;
+            return prop.ValueKind == JsonValueKind.String ? prop.GetString() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static string Escape(string value) =>
         value.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
+    private static readonly bool DiagnosticsEnabled =
+        string.Equals(
+            Environment.GetEnvironmentVariable("CHAT_DIAGNOSTICS"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..max] + "…";
+
     private static readonly Regex ThinkBlock = new(@"<think>[\s\S]*?</think>", RegexOptions.Compiled);
+    private static readonly Regex DanglingThinkClose = new(@"\A[\s\S]*?</think>\s*", RegexOptions.Compiled);
 
     private static string StripThinking(string content)
     {
         if (string.IsNullOrEmpty(content)) return content;
-        return ThinkBlock.Replace(content, string.Empty).TrimStart();
+        var stripped = ThinkBlock.Replace(content, string.Empty);
+        stripped = DanglingThinkClose.Replace(stripped, string.Empty);
+        return stripped.TrimStart();
+    }
+
+    private static readonly string[] CancellationSuccessPhrases =
+    {
+        "successfully cancelled",
+        "has been cancelled",
+        "cancellation successful",
+        "cancellation confirmed",
+        "cancellation complete",
+        "now free"
+    };
+
+    private static readonly string[] BookingSuccessPhrases =
+    {
+        "reservation confirmed for",
+        "your reservation is confirmed",
+        "your booking is confirmed"
+    };
+
+    private static string GuardHallucinatedSuccess(string content, HashSet<string> toolNamesCalled)
+    {
+        if (string.IsNullOrEmpty(content)) return content;
+
+        if (ContainsAny(content, CancellationSuccessPhrases) && !toolNamesCalled.Contains("cancel_reservation"))
+        {
+            if (DiagnosticsEnabled)
+                Console.WriteLine("[chat-diag] guard: rewriting hallucinated cancellation success");
+            return "I'm sorry — I wasn't able to actually cancel that reservation. Could you please confirm the reservation details and try again?";
+        }
+
+        if (ContainsAny(content, BookingSuccessPhrases) && !toolNamesCalled.Contains("create_reservation"))
+        {
+            if (DiagnosticsEnabled)
+                Console.WriteLine("[chat-diag] guard: rewriting hallucinated booking confirmation");
+            return "I'm sorry — I wasn't able to actually create that reservation. Could you please confirm the details and try again?";
+        }
+
+        return content;
+    }
+
+    private static bool ContainsAny(string content, string[] phrases)
+    {
+        foreach (var phrase in phrases)
+        {
+            if (content.Contains(phrase, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    private static readonly Regex PhonePattern = new(@"\+?\d[\d\s\-\(\)]{6,}\d", RegexOptions.Compiled);
+
+    private static HashSet<string> ExtractPhonesProvided(IEnumerable<ChatMessageDto> messages)
+    {
+        var phones = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var msg in messages)
+        {
+            if (!string.Equals(msg.Role, "user", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.IsNullOrEmpty(msg.Content)) continue;
+            foreach (Match m in PhonePattern.Matches(msg.Content))
+            {
+                var normalized = PhoneNormalizer.Normalize(m.Value);
+                var digitsOnly = new string(normalized.Where(char.IsDigit).ToArray());
+                if (digitsOnly.Length >= 7)
+                    phones.Add(normalized);
+            }
+        }
+        return phones;
+    }
+
+    private static bool IsPhoneFromGuest(JsonElement args, HashSet<string> phonesProvided)
+    {
+        var llmPhone = TryGetStringProperty(args, "phone");
+        if (string.IsNullOrWhiteSpace(llmPhone)) return true;
+        var normalized = PhoneNormalizer.Normalize(llmPhone);
+        if (string.IsNullOrEmpty(normalized)) return true;
+        return phonesProvided.Contains(normalized);
+    }
+
+    private static readonly Regex WordPattern = new(@"[\p{L}]{2,}", RegexOptions.Compiled);
+
+    private static HashSet<string> ExtractWordsProvided(IEnumerable<ChatMessageDto> messages)
+    {
+        var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var msg in messages)
+        {
+            if (!string.Equals(msg.Role, "user", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.IsNullOrEmpty(msg.Content)) continue;
+            foreach (Match m in WordPattern.Matches(msg.Content))
+            {
+                words.Add(m.Value);
+            }
+        }
+        return words;
+    }
+
+    private static string? FindHallucinatedNameField(JsonElement args, HashSet<string> wordsProvided)
+    {
+        if (!IsNameFromGuest(TryGetStringProperty(args, "firstName"), wordsProvided))
+            return "firstName";
+        if (!IsNameFromGuest(TryGetStringProperty(args, "lastName"), wordsProvided))
+            return "lastName";
+        return null;
+    }
+
+    private static bool IsNameFromGuest(string? name, HashSet<string> wordsProvided)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+        var parts = name.Split(new[] { ' ', '\t', '-' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            if (part.Length < 2) continue;
+            if (!wordsProvided.Contains(part)) return false;
+        }
+        return true;
     }
 }

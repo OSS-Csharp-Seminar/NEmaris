@@ -9,6 +9,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        services.AddMemoryCache();
+        services.AddSingleton<IConversationStateStore, ConversationStateStore>();
+
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITableService, TableService>();
         services.AddScoped<IMenuCategoryService, MenuCategoryService>();
@@ -18,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IRequestTimeZoneContext, RequestTimeZoneContext>();
 
+        services.AddScoped<IChatTool, ResolveTimeTool>();
         services.AddScoped<IChatTool, GetAvailableTablesTool>();
         services.AddScoped<IChatTool, CreateReservationTool>();
         services.AddScoped<IChatTool, FindReservationsByPhoneTool>();

@@ -8,6 +8,7 @@ export interface ChatMessage {
 export interface ChatRequest {
   messages: ChatMessage[];
   timeZone?: string;
+  sessionId?: string;
 }
 
 export interface ChatResponse {

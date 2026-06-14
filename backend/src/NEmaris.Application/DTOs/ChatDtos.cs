@@ -9,6 +9,8 @@ public class ChatRequestDto
     public List<ChatMessageDto> Messages { get; set; } = new();
 
     public string? TimeZone { get; set; }
+
+    public string? SessionId { get; set; }
 }
 
 public class ChatMessageDto
