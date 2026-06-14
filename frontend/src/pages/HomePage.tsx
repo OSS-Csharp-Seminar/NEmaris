@@ -66,6 +66,22 @@ export default function HomePage() {
     return () => window.removeEventListener(RESERVATIONS_CHANGED_EVENT, handler);
   }, []);
 
+  useEffect(() => {
+    const POLL_MS = 10_000;
+    const tick = () => {
+      if (!document.hidden) setRefreshKey((k) => k + 1);
+    };
+    const id = window.setInterval(tick, POLL_MS);
+    const onVisibilityChange = () => {
+      if (!document.hidden) setRefreshKey((k) => k + 1);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
   return (
     <div className="flex h-full min-h-0 flex-col rounded-lg border border-border bg-background p-4">
       <div className="mb-4 flex justify-end gap-3">

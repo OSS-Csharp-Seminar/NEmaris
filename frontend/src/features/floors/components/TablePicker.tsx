@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import FloorPlan from "./FloorPlan";
 import type {
   RestaurantFloor,
@@ -23,6 +23,12 @@ export default function TablePicker({
   const [orderPanelTable, setOrderPanelTable] = useState<RestaurantTable | null>(null);
   const [isUpdatingTable, setIsUpdatingTable] = useState(false);
   const [tableError, setTableError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedTable((prev) =>
+      prev ? (floor.tables.find((t) => t.id === prev.id) ?? null) : null,
+    );
+  }, [floor]);
 
   const updateSelectedTable = async (update: () => Promise<RestaurantTable>) => {
     setIsUpdatingTable(true);
