@@ -264,7 +264,7 @@ public class OrderService : IOrderService
 
         return new DailyStatsDto
         {
-            Date = todayStart,
+            Date = DateTime.SpecifyKind(todayStart, DateTimeKind.Utc),
             BillCount = orders.Count,
             Revenue = revenue,
             TaxCollected = tax,
@@ -307,8 +307,8 @@ public class OrderService : IOrderService
         TaxRate = o.TaxRate,
         TaxAmount = o.TaxAmount,
         TotalAmount = o.TotalAmount,
-        OpenedAt = o.OpenedAt,
-        ClosedAt = o.ClosedAt,
+        OpenedAt = AsUtc(o.OpenedAt),
+        ClosedAt = AsUtcNullable(o.ClosedAt),
         Items = o.Items.Select(MapToOrderItemDto).ToList(),
     };
 
@@ -343,9 +343,15 @@ public class OrderService : IOrderService
             PaymentMethod = p.PaymentMethod.ToString().ToLower(),
             Amount = p.Amount,
             ReferenceNumber = p.ReferenceNumber,
-            PaidAt = p.PaidAt,
+            PaidAt = AsUtc(p.PaidAt),
         }).ToList(),
-        OpenedAt = o.OpenedAt,
-        ClosedAt = o.ClosedAt,
+        OpenedAt = AsUtc(o.OpenedAt),
+        ClosedAt = AsUtcNullable(o.ClosedAt),
     };
+
+    private static DateTime AsUtc(DateTime value) =>
+        DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+    private static DateTime? AsUtcNullable(DateTime? value) =>
+        value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
 }

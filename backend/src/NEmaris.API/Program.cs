@@ -8,6 +8,8 @@ using NEmaris.Domain.Entities;
 using NEmaris.Domain.Enums;
 using NEmaris.Infrastructure;
 using NEmaris.Infrastructure.Persistence;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
@@ -38,6 +40,38 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var sub =
+                context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+            if (string.IsNullOrEmpty(sub))
+            {
+                context.Fail("Token is missing subject claim.");
+                return;
+            }
+
+            var userManager = context.HttpContext.RequestServices
+                .GetRequiredService<UserManager<ApplicationUser>>();
+
+            var user = await userManager.FindByIdAsync(sub);
+            if (user is null)
+            {
+                context.Fail("User referenced by token no longer exists.");
+                return;
+            }
+
+            if (user.Status != UserStatus.Active)
+            {
+                context.Fail("User account is not active.");
+                return;
+            }
+        }
     };
 });
 
