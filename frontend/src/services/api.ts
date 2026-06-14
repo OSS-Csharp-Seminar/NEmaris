@@ -66,14 +66,18 @@ api.interceptors.response.use(
     originalRequest._retry = true;
     isRefreshing = true;
 
+    const refreshTokenAtStart = tokenStorage.getRefreshToken();
     try {
-      const refreshToken = tokenStorage.getRefreshToken();
-      if (!refreshToken) throw new Error("No refresh token");
+      if (!refreshTokenAtStart) {
+        const err = new Error("No refresh token");
+        (err as Error & { isAuthFailure?: boolean }).isAuthFailure = true;
+        throw err;
+      }
 
       const { data } = await axios.post<{
         accessToken: string;
         refreshToken: string;
-      }>(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+      }>(`${API_BASE_URL}/auth/refresh`, { refreshToken: refreshTokenAtStart });
 
       tokenStorage.setTokens(data.accessToken, data.refreshToken);
       processQueue(null, data.accessToken);
@@ -81,9 +85,33 @@ api.interceptors.response.use(
       originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
       return api(originalRequest);
     } catch (refreshError) {
+      // Another tab may have rotated the refresh token while we were trying.
+      // If so, retry the original request with the new access token instead of logging out.
+      const refreshTokenNow = tokenStorage.getRefreshToken();
+      const accessTokenNow = tokenStorage.getAccessToken();
+      if (
+        refreshTokenNow &&
+        refreshTokenNow !== refreshTokenAtStart &&
+        accessTokenNow
+      ) {
+        processQueue(null, accessTokenNow);
+        originalRequest.headers.Authorization = `Bearer ${accessTokenNow}`;
+        return api(originalRequest);
+      }
+
       processQueue(refreshError, null);
-      tokenStorage.clearTokens();
-      window.location.href = "/login";
+
+      const refreshStatus = (refreshError as { response?: { status?: number } })
+        .response?.status;
+      const isExplicitAuthFailure =
+        refreshStatus === 401 ||
+        (refreshError as { isAuthFailure?: boolean }).isAuthFailure === true;
+
+      if (isExplicitAuthFailure) {
+        tokenStorage.clearTokens();
+        window.location.href = "/login";
+      }
+
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
