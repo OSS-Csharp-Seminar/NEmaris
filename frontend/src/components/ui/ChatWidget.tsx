@@ -83,6 +83,8 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
         typeof e === "object" && e && "response" in e
           ? (e as { response?: { status?: number } }).response?.status
           : undefined;
+      setMessages(messages);
+      setInput(trimmed);
       if (status === 429) {
         setError("Too many requests. Try again in a minute.");
       } else {
