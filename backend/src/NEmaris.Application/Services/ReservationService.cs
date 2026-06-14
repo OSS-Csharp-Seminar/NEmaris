@@ -22,10 +22,20 @@ public class ReservationService : IReservationService
     };
 
     private readonly IReservationRepository _reservationRepository;
+    private readonly ITableRepository _tableRepository;
+    private readonly IOrderService _orderService;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public ReservationService(IReservationRepository reservationRepository)
+    public ReservationService(
+        IReservationRepository reservationRepository,
+        ITableRepository tableRepository,
+        IOrderService orderService,
+        IUnitOfWork unitOfWork)
     {
         _reservationRepository = reservationRepository;
+        _tableRepository = tableRepository;
+        _orderService = orderService;
+        _unitOfWork = unitOfWork;
     }
 
     private static bool IsPlaceholder(string value) =>
@@ -119,64 +129,67 @@ public class ReservationService : IReservationService
         var normalizedNotes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
         var normalizedSpecialRequest = string.IsNullOrWhiteSpace(dto.SpecialRequest) ? null : dto.SpecialRequest.Trim();
 
-        var table = await _reservationRepository.GetTableByIdAsync(dto.TableId);
-        if (table is null)
-            throw new KeyNotFoundException("Selected table does not exist.");
-
-        if (dto.PartySize > table.Capacity)
-            throw new InvalidOperationException("Party size exceeds selected table capacity.");
-
-        var isOverlapping = await _reservationRepository.HasOverlappingReservationAsync(dto.TableId, dto.StartTime, dto.EndTime);
-        if (isOverlapping)
-            throw new InvalidOperationException("Selected table is already reserved for that time slot.");
-
-        var guest = await _reservationRepository.GetGuestByPhoneAsync(normalizedPhone);
-        if (guest is null)
+        return await _unitOfWork.InSerializableTransactionAsync(async () =>
         {
-            guest = new Guests
+            var table = await _reservationRepository.GetTableByIdAsync(dto.TableId);
+            if (table is null)
+                throw new KeyNotFoundException("Selected table does not exist.");
+
+            if (dto.PartySize > table.Capacity)
+                throw new InvalidOperationException("Party size exceeds selected table capacity.");
+
+            var isOverlapping = await _reservationRepository.HasOverlappingReservationAsync(dto.TableId, dto.StartTime, dto.EndTime);
+            if (isOverlapping)
+                throw new InvalidOperationException("Selected table is already reserved for that time slot.");
+
+            var guest = await _reservationRepository.GetGuestByPhoneAsync(normalizedPhone);
+            if (guest is null)
             {
-                FirstName = firstName,
-                LastName = lastName,
-                Phone = normalizedPhone,
-                Email = normalizedEmail,
-                Notes = normalizedNotes,
+                guest = new Guests
+                {
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Phone = normalizedPhone,
+                    Email = normalizedEmail,
+                    Notes = normalizedNotes,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                await _reservationRepository.AddGuestAsync(guest);
+            }
+            else
+            {
+                guest.FirstName = firstName;
+                guest.LastName = lastName;
+                guest.Email = normalizedEmail;
+                guest.Notes = normalizedNotes;
+                guest.UpdatedAt = DateTime.UtcNow;
+
+                await _reservationRepository.UpdateGuestAsync(guest);
+            }
+
+            var reservation = new Reservations
+            {
+                GuestId = guest.Id,
+                TableId = table.Id,
+                ReservedByUserId = reservedByUserId,
+                ReservationDate = DateOnly.FromDateTime(dto.StartTime),
+                StartTime = dto.StartTime,
+                EndTime = dto.EndTime,
+                PartySize = dto.PartySize,
+                Status = ReservationStatus.Active,
+                SpecialRequest = normalizedSpecialRequest,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
-            await _reservationRepository.AddGuestAsync(guest);
-        }
-        else
-        {
-            guest.FirstName = firstName;
-            guest.LastName = lastName;
-            guest.Email = normalizedEmail;
-            guest.Notes = normalizedNotes;
-            guest.UpdatedAt = DateTime.UtcNow;
+            await _reservationRepository.AddReservationAsync(reservation);
+            reservation.Guest = guest;
+            reservation.Table = table;
 
-            await _reservationRepository.UpdateGuestAsync(guest);
-        }
-
-        var reservation = new Reservations
-        {
-            GuestId = guest.Id,
-            TableId = table.Id,
-            ReservedByUserId = reservedByUserId,
-            ReservationDate = DateOnly.FromDateTime(dto.StartTime),
-            StartTime = dto.StartTime,
-            EndTime = dto.EndTime,
-            PartySize = dto.PartySize,
-            Status = ReservationStatus.Active,
-            SpecialRequest = normalizedSpecialRequest,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        await _reservationRepository.AddReservationAsync(reservation);
-        reservation.Guest = guest;
-        reservation.Table = table;
-
-        return MapToDto(reservation);
+            return MapToDto(reservation);
+        });
     }
 
     public async Task<IReadOnlyList<ReservationResponseDto>> GetReservationsAsync(DateOnly? fromDate, DateOnly? toDate)
@@ -240,95 +253,114 @@ public class ReservationService : IReservationService
     {
         var normalizedPhone = PhoneNormalizer.Normalize(RequireRealValue(phone, "Phone number"));
 
-        var reservation = await _reservationRepository.GetReservationByIdAsync(id);
-        if (reservation is null)
-            throw new KeyNotFoundException("Reservation not found.");
-
-        if (!string.Equals(reservation.Guest.Phone, normalizedPhone, StringComparison.Ordinal))
-            throw new InvalidOperationException("Phone number does not match the reservation.");
-
-        switch (reservation.Status)
+        return await _unitOfWork.InSerializableTransactionAsync(async () =>
         {
-            case ReservationStatus.Cancelled:
-                return MapToDto(reservation);
-            case ReservationStatus.Active:
-            case ReservationStatus.Late:
-                break;
-            case ReservationStatus.Seated:
-                throw new InvalidOperationException("Cannot cancel a reservation once the guests have been seated.");
-            case ReservationStatus.Completed:
-                throw new InvalidOperationException("Cannot cancel a completed reservation.");
-            case ReservationStatus.NoShow:
-                throw new InvalidOperationException("Cannot cancel a reservation that was already marked no-show.");
-            default:
-                throw new InvalidOperationException($"Cannot cancel a reservation with status {reservation.Status}.");
-        }
+            var reservation = await _reservationRepository.GetReservationByIdAsync(id);
+            if (reservation is null)
+                throw new KeyNotFoundException("Reservation not found.");
 
-        reservation.Status = ReservationStatus.Cancelled;
-        reservation.UpdatedAt = DateTime.UtcNow;
-        await _reservationRepository.UpdateReservationAsync(reservation);
+            if (!string.Equals(reservation.Guest.Phone, normalizedPhone, StringComparison.Ordinal))
+                throw new InvalidOperationException("Phone number does not match the reservation.");
 
-        return MapToDto(reservation);
+            switch (reservation.Status)
+            {
+                case ReservationStatus.Cancelled:
+                    return MapToDto(reservation);
+                case ReservationStatus.Active:
+                case ReservationStatus.Late:
+                    break;
+                case ReservationStatus.Seated:
+                    throw new InvalidOperationException("Cannot cancel a reservation once the guests have been seated.");
+                case ReservationStatus.Completed:
+                    throw new InvalidOperationException("Cannot cancel a completed reservation.");
+                case ReservationStatus.NoShow:
+                    throw new InvalidOperationException("Cannot cancel a reservation that was already marked no-show.");
+                default:
+                    throw new InvalidOperationException($"Cannot cancel a reservation with status {reservation.Status}.");
+            }
+
+            reservation.Status = ReservationStatus.Cancelled;
+            reservation.UpdatedAt = DateTime.UtcNow;
+            await _reservationRepository.UpdateReservationAsync(reservation);
+
+            return MapToDto(reservation);
+        });
     }
 
     public async Task<ReservationResponseDto> UpdateReservationAsync(long id, UpdateReservationDto dto)
     {
         var normalizedPhone = PhoneNormalizer.Normalize(RequireRealValue(dto.Phone, "Phone number"));
 
-        var reservation = await _reservationRepository.GetReservationByIdAsync(id);
-        if (reservation is null)
-            throw new KeyNotFoundException("Reservation not found.");
-
-        if (!string.Equals(reservation.Guest.Phone, normalizedPhone, StringComparison.Ordinal))
-            throw new InvalidOperationException("Phone number does not match the reservation.");
-
-        if (reservation.Status != ReservationStatus.Active)
-            throw new InvalidOperationException($"Cannot update a reservation with status {reservation.Status}.");
-
-        var hasAnyChange =
-            dto.StartTime.HasValue ||
-            dto.EndTime.HasValue ||
-            dto.PartySize.HasValue ||
-            !string.IsNullOrWhiteSpace(dto.TableNumber) ||
-            dto.SpecialRequest is not null;
-
-        if (!hasAnyChange)
-            throw new InvalidOperationException("No fields provided to update.");
-
-        var newStartTime = dto.StartTime ?? reservation.StartTime;
-        var newEndTime = dto.EndTime ?? reservation.EndTime;
-        var newPartySize = dto.PartySize ?? reservation.PartySize;
-
-        if (newEndTime <= newStartTime)
-            throw new InvalidOperationException("End time must be later than start time.");
-
-        var newTableId = reservation.TableId;
-        var newTableForCapacityCheck = reservation.Table;
-
-        if (!string.IsNullOrWhiteSpace(dto.TableNumber))
+        return await _unitOfWork.InSerializableTransactionAsync(async () =>
         {
-            var trimmed = dto.TableNumber.Trim();
-            var newTable = await _reservationRepository.GetTableByNumberAsync(trimmed)
-                ?? throw new KeyNotFoundException($"No table named '{trimmed}' exists.");
-            newTableId = newTable.Id;
-            newTableForCapacityCheck = newTable;
-        }
+            var reservation = await _reservationRepository.GetReservationByIdAsync(id);
+            if (reservation is null)
+                throw new KeyNotFoundException("Reservation not found.");
 
-        if (newPartySize > newTableForCapacityCheck.Capacity)
-            throw new InvalidOperationException("Party size exceeds the chosen table's capacity.");
+            if (!string.Equals(reservation.Guest.Phone, normalizedPhone, StringComparison.Ordinal))
+                throw new InvalidOperationException("Phone number does not match the reservation.");
 
-        var scheduleOrTableChanged =
-            dto.StartTime.HasValue ||
-            dto.EndTime.HasValue ||
-            !string.IsNullOrWhiteSpace(dto.TableNumber);
+            if (reservation.Status != ReservationStatus.Active)
+                throw new InvalidOperationException($"Cannot update a reservation with status {reservation.Status}.");
 
-        if (scheduleOrTableChanged)
-        {
-            var clash = await _reservationRepository.HasOverlappingReservationAsync(
-                newTableId, newStartTime, newEndTime, excludeReservationId: id);
-            if (clash)
-                throw new InvalidOperationException("Selected table is already reserved for that time slot.");
-        }
+            var hasAnyChange =
+                dto.StartTime.HasValue ||
+                dto.EndTime.HasValue ||
+                dto.PartySize.HasValue ||
+                !string.IsNullOrWhiteSpace(dto.TableNumber) ||
+                dto.SpecialRequest is not null;
+
+            if (!hasAnyChange)
+                throw new InvalidOperationException("No fields provided to update.");
+
+            var newStartTime = dto.StartTime ?? reservation.StartTime;
+            var newEndTime = dto.EndTime ?? reservation.EndTime;
+            var newPartySize = dto.PartySize ?? reservation.PartySize;
+
+            if (newEndTime <= newStartTime)
+                throw new InvalidOperationException("End time must be later than start time.");
+
+            var newTableId = reservation.TableId;
+            var newTableForCapacityCheck = reservation.Table;
+
+            if (!string.IsNullOrWhiteSpace(dto.TableNumber))
+            {
+                var trimmed = dto.TableNumber.Trim();
+                var newTable = await _reservationRepository.GetTableByNumberAsync(trimmed)
+                    ?? throw new KeyNotFoundException($"No table named '{trimmed}' exists.");
+                newTableId = newTable.Id;
+                newTableForCapacityCheck = newTable;
+            }
+
+            if (newPartySize > newTableForCapacityCheck.Capacity)
+                throw new InvalidOperationException("Party size exceeds the chosen table's capacity.");
+
+            var scheduleOrTableChanged =
+                dto.StartTime.HasValue ||
+                dto.EndTime.HasValue ||
+                !string.IsNullOrWhiteSpace(dto.TableNumber);
+
+            if (scheduleOrTableChanged)
+            {
+                var clash = await _reservationRepository.HasOverlappingReservationAsync(
+                    newTableId, newStartTime, newEndTime, excludeReservationId: id);
+                if (clash)
+                    throw new InvalidOperationException("Selected table is already reserved for that time slot.");
+            }
+
+            return await CompleteUpdateAsync(reservation, dto, newTableId, newTableForCapacityCheck, newStartTime, newEndTime, newPartySize);
+        });
+    }
+
+    private async Task<ReservationResponseDto> CompleteUpdateAsync(
+        Reservations reservation,
+        UpdateReservationDto dto,
+        long newTableId,
+        RestaurantTables newTableForCapacityCheck,
+        DateTime newStartTime,
+        DateTime newEndTime,
+        int newPartySize)
+    {
 
         reservation.TableId = newTableId;
         reservation.Table = newTableForCapacityCheck;
@@ -348,6 +380,94 @@ public class ReservationService : IReservationService
         return MapToDto(reservation);
     }
 
+    public async Task<ReservationResponseDto> ChangeStatusAsync(long id, ReservationStatus newStatus, string? waiterUserId = null)
+    {
+        var (result, openOrderForTableId, openOrderForReservationId) = await _unitOfWork.InSerializableTransactionAsync<(ReservationResponseDto, long?, long?)>(async () =>
+        {
+            var reservation = await _reservationRepository.GetReservationByIdAsync(id);
+            if (reservation is null)
+                throw new KeyNotFoundException("Reservation not found.");
+
+            if (reservation.Status == newStatus)
+                return (MapToDto(reservation), (long?)null, (long?)null);
+
+            if (!IsLegalTransition(reservation.Status, newStatus))
+                throw new InvalidOperationException(
+                    $"Cannot transition reservation from {reservation.Status} to {newStatus}.");
+
+            var previousStatus = reservation.Status;
+            reservation.Status = newStatus;
+            reservation.UpdatedAt = DateTime.UtcNow;
+            await _reservationRepository.UpdateReservationAsync(reservation);
+
+            long? tableNeedingOrder = null;
+            long? reservationIdForOrder = null;
+
+            if (newStatus == ReservationStatus.Seated)
+            {
+                var table = await _tableRepository.GetByIdAsync(reservation.TableId);
+                if (table is not null)
+                {
+                    table.Status = TableStatus.Seated;
+                    table.GuestCount = Math.Min(reservation.PartySize, table.Capacity);
+                    table.UpdatedAt = DateTime.UtcNow;
+                    await _tableRepository.UpdateAsync(table);
+                }
+
+                tableNeedingOrder = reservation.TableId;
+                reservationIdForOrder = reservation.Id;
+            }
+            else if (previousStatus == ReservationStatus.Seated && newStatus == ReservationStatus.Completed)
+            {
+                var table = await _tableRepository.GetByIdAsync(reservation.TableId);
+                if (table is not null)
+                {
+                    table.Status = TableStatus.Available;
+                    table.GuestCount = 0;
+                    table.UpdatedAt = DateTime.UtcNow;
+                    await _tableRepository.UpdateAsync(table);
+                }
+            }
+
+            return (MapToDto(reservation), tableNeedingOrder, reservationIdForOrder);
+        });
+
+        if (openOrderForTableId.HasValue && !string.IsNullOrWhiteSpace(waiterUserId))
+        {
+            try
+            {
+                var existingOrder = await _orderService.GetOpenOrderByTableIdAsync(openOrderForTableId.Value);
+                if (existingOrder is null)
+                {
+                    await _orderService.CreateOrderAsync(
+                        new CreateOrderDto { TableId = openOrderForTableId.Value, ReservationId = openOrderForReservationId },
+                        waiterUserId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[change-status] order auto-open failed for table {openOrderForTableId.Value}: {ex.Message}");
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsLegalTransition(ReservationStatus from, ReservationStatus to) => from switch
+    {
+        ReservationStatus.Active => to is ReservationStatus.Seated
+            or ReservationStatus.NoShow
+            or ReservationStatus.Cancelled
+            or ReservationStatus.Late
+            or ReservationStatus.Completed,
+        ReservationStatus.Late => to is ReservationStatus.Seated
+            or ReservationStatus.NoShow
+            or ReservationStatus.Cancelled
+            or ReservationStatus.Completed,
+        ReservationStatus.Seated => to is ReservationStatus.Completed,
+        _ => false
+    };
+
     private static ReservationResponseDto MapToDto(Reservations reservation)
     {
         return new ReservationResponseDto
@@ -359,8 +479,8 @@ public class ReservationService : IReservationService
             TableId = reservation.TableId,
             TableNumber = reservation.Table.TableNumber,
             ReservationDate = reservation.ReservationDate,
-            StartTime = reservation.StartTime,
-            EndTime = reservation.EndTime,
+            StartTime = DateTime.SpecifyKind(reservation.StartTime, DateTimeKind.Utc),
+            EndTime = DateTime.SpecifyKind(reservation.EndTime, DateTimeKind.Utc),
             PartySize = reservation.PartySize,
             Status = reservation.Status,
             SpecialRequest = reservation.SpecialRequest,

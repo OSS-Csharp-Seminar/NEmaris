@@ -10,6 +10,7 @@ import AdminRoute from "../components/guards/AdminRoute";
 import MenuManagementPage from "../pages/MenuManagementPage";
 import OrdersPage from "../pages/OrdersPage";
 import CashRegisterPage from "../pages/CashRegisterPage";
+import ReservationsPage from "../pages/ReservationsPage";
 
 const router = createBrowserRouter([
   {
@@ -39,6 +40,10 @@ const router = createBrowserRouter([
           {
             path: "cash-register",
             element: <CashRegisterPage />,
+          },
+          {
+            path: "reservations",
+            element: <ReservationsPage />,
           },
         ],
       },

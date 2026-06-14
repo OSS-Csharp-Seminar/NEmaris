@@ -1,4 +1,5 @@
 using NEmaris.Application.DTOs;
+using NEmaris.Domain.Enums;
 
 namespace NEmaris.Application.Interfaces;
 
@@ -11,4 +12,5 @@ public interface IReservationService
     Task<IReadOnlyList<ReservationResponseDto>> GetUpcomingReservationsForGuestAsync(string phone, string lastName);
     Task<ReservationResponseDto> CancelReservationAsync(long id, string phone);
     Task<ReservationResponseDto> UpdateReservationAsync(long id, UpdateReservationDto dto);
+    Task<ReservationResponseDto> ChangeStatusAsync(long id, ReservationStatus newStatus, string? waiterUserId = null);
 }

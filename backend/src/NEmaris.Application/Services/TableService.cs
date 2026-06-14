@@ -10,15 +10,18 @@ public class TableService : ITableService
     private readonly ITableRepository _tableRepository;
     private readonly IOrderService _orderService;
     private readonly IReservationRepository _reservationRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public TableService(
         ITableRepository tableRepository,
         IOrderService orderService,
-        IReservationRepository reservationRepository)
+        IReservationRepository reservationRepository,
+        IUnitOfWork unitOfWork)
     {
         _tableRepository = tableRepository;
         _orderService = orderService;
         _reservationRepository = reservationRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<TableDto>> GetAllAsync()
@@ -118,50 +121,49 @@ public class TableService : ITableService
 
     public async Task<TableDto> MarkOccupiedAsync(long id, string waiterUserId)
     {
-        var table = await _tableRepository.GetByIdAsync(id);
-        if (table is null)
-            throw new KeyNotFoundException("Table not found.");
-
-        if (table.Status != TableStatus.Reserved || table.GuestCount == 0)
-            throw new InvalidOperationException("Only a reserved table with guests can be marked as occupied.");
-
-        table.Status = TableStatus.Seated;
-        table.UpdatedAt = DateTime.UtcNow;
-
-        await _tableRepository.UpdateAsync(table);
-
-        var now = DateTime.UtcNow;
-        var reservation = await _reservationRepository.GetActiveReservationForTableCoveringAsync(id, now);
-        ReservationStatus? previousReservationStatus = null;
-        if (reservation is not null)
+        var (resultTable, needsOrderForTable) = await _unitOfWork.InSerializableTransactionAsync<(RestaurantTables, long?)>(async () =>
         {
-            previousReservationStatus = reservation.Status;
-            reservation.Status = ReservationStatus.Seated;
-            reservation.UpdatedAt = now;
-            await _reservationRepository.UpdateReservationAsync(reservation);
-        }
+            var table = await _tableRepository.GetByIdAsync(id);
+            if (table is null)
+                throw new KeyNotFoundException("Table not found.");
 
-        try
-        {
-            await _orderService.CreateOrderAsync(new CreateOrderDto { TableId = id }, waiterUserId);
-        }
-        catch
-        {
-            table.Status = TableStatus.Reserved;
+            if (table.Status != TableStatus.Reserved || table.GuestCount == 0)
+                throw new InvalidOperationException("Only a reserved table with guests can be marked as occupied.");
+
+            table.Status = TableStatus.Seated;
             table.UpdatedAt = DateTime.UtcNow;
+
             await _tableRepository.UpdateAsync(table);
 
-            if (reservation is not null && previousReservationStatus.HasValue)
+            var now = DateTime.UtcNow;
+            var reservation = await _reservationRepository.GetActiveReservationForTableCoveringAsync(id, now);
+            if (reservation is not null)
             {
-                reservation.Status = previousReservationStatus.Value;
-                reservation.UpdatedAt = DateTime.UtcNow;
+                reservation.Status = ReservationStatus.Seated;
+                reservation.UpdatedAt = now;
                 await _reservationRepository.UpdateReservationAsync(reservation);
             }
 
-            throw;
+            return (table, (long?)id);
+        });
+
+        if (needsOrderForTable.HasValue)
+        {
+            try
+            {
+                var existing = await _orderService.GetOpenOrderByTableIdAsync(needsOrderForTable.Value);
+                if (existing is null)
+                {
+                    await _orderService.CreateOrderAsync(new CreateOrderDto { TableId = needsOrderForTable.Value }, waiterUserId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[mark-occupied] order auto-open failed for table {needsOrderForTable.Value}: {ex.Message}");
+            }
         }
 
-        return MapToDto(table);
+        return MapToDto(resultTable);
     }
 
     public async Task DeleteTableAsync(long id)

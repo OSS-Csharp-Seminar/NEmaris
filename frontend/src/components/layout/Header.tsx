@@ -49,6 +49,14 @@ export default function Header({ onOpenChat }: HeaderProps) {
 
             <button
               type="button"
+              onClick={() => navigate("/reservations")}
+              className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+            >
+              Rezervacije
+            </button>
+
+            <button
+              type="button"
               onClick={onOpenChat}
               className="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
             >

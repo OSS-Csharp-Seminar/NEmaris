@@ -48,6 +48,7 @@ public class ReservationRepository : IReservationRepository
             r.TableId == tableId &&
             r.Status != ReservationStatus.Cancelled &&
             r.Status != ReservationStatus.NoShow &&
+            r.Status != ReservationStatus.Completed &&
             r.StartTime < endTime &&
             startTime < r.EndTime &&
             (!excludeReservationId.HasValue || r.Id != excludeReservationId.Value));
@@ -102,6 +103,7 @@ public class ReservationRepository : IReservationRepository
             .Where(r =>
                 r.Status != ReservationStatus.Cancelled &&
                 r.Status != ReservationStatus.NoShow &&
+                r.Status != ReservationStatus.Completed &&
                 r.StartTime < endTime &&
                 startTime < r.EndTime)
             .Select(r => r.TableId)

@@ -111,4 +111,26 @@ public class ReservationsController : ControllerBase
             return Conflict(new { message = ex.Message });
         }
     }
+
+    [HttpPatch("{id:long}/status")]
+    public async Task<IActionResult> ChangeStatus(long id, [FromBody] ChangeReservationStatusDto request)
+    {
+        try
+        {
+            var waiterUserId =
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+            var updated = await _reservationService.ChangeStatusAsync(id, request.Status, waiterUserId);
+            return Ok(updated);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 }
