@@ -13,7 +13,7 @@ export const RESERVATIONS_CHANGED_EVENT = "nemaris:reservations-changed";
 function loadMessages(): ChatMessage[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as ChatMessage[]) : [];
@@ -24,10 +24,10 @@ function loadMessages(): ChatMessage[] {
 
 function loadSessionId(): string {
   if (typeof window === "undefined") return crypto.randomUUID();
-  const existing = window.sessionStorage.getItem(SESSION_KEY);
+  const existing = window.localStorage.getItem(SESSION_KEY);
   if (existing) return existing;
   const fresh = crypto.randomUUID();
-  window.sessionStorage.setItem(SESSION_KEY, fresh);
+  window.localStorage.setItem(SESSION_KEY, fresh);
   return fresh;
 }
 
@@ -43,9 +43,9 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (messages.length === 0) {
-      window.sessionStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(STORAGE_KEY);
     } else {
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     }
   }, [messages]);
 
@@ -67,6 +67,18 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onOpenChange]);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) {
+        setMessages(loadMessages());
+      } else if (e.key === SESSION_KEY) {
+        setSessionId(loadSessionId());
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const send = async () => {
     const trimmed = input.trim();
@@ -117,7 +129,7 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     const fresh = crypto.randomUUID();
     setSessionId(fresh);
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(SESSION_KEY, fresh);
+      window.localStorage.setItem(SESSION_KEY, fresh);
     }
     inputRef.current?.focus();
   };
