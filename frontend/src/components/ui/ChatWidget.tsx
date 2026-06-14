@@ -59,6 +59,15 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onOpenChange(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onOpenChange]);
+
   const send = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
