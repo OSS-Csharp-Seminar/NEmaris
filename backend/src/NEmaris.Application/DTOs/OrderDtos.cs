@@ -89,6 +89,7 @@ public class DailyStatsDto
     public decimal Revenue { get; set; }
     public decimal TaxCollected { get; set; }
     public decimal Subtotal { get; set; }
+    public decimal Tips { get; set; }
     public List<PaymentMethodTotalDto> ByPaymentMethod { get; set; } = [];
     public List<TopItemDto> TopItems { get; set; } = [];
     public List<WaiterTotalDto> ByWaiter { get; set; } = [];

@@ -223,6 +223,7 @@ public class OrderService : IOrderService
         var subtotal = orders.Sum(o => o.Subtotal - o.DiscountAmount);
         var tax = orders.Sum(o => o.TaxAmount);
         var revenue = orders.Sum(o => o.TotalAmount);
+        var tips = orders.Sum(o => Math.Max(0m, o.Payments.Sum(p => p.Amount) - o.TotalAmount));
 
         var byPaymentMethod = orders
             .SelectMany(o => o.Payments)
@@ -269,6 +270,7 @@ public class OrderService : IOrderService
             Revenue = revenue,
             TaxCollected = tax,
             Subtotal = subtotal,
+            Tips = tips,
             ByPaymentMethod = byPaymentMethod,
             TopItems = topItems,
             ByWaiter = byWaiter,

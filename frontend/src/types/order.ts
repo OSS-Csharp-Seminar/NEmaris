@@ -81,6 +81,7 @@ export interface DailyStats {
   revenue: number;
   taxCollected: number;
   subtotal: number;
+  tips: number;
   byPaymentMethod: PaymentMethodTotal[];
   topItems: TopItem[];
   byWaiter: WaiterTotal[];

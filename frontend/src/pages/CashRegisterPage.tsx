@@ -67,10 +67,11 @@ export default function CashRegisterPage() {
         <p className="text-sm text-rose-700">{error}</p>
       ) : !stats ? null : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <StatCard label="Promet (s PDV-om)" value={`${stats.revenue.toFixed(2)} €`} accent />
             <StatCard label="Osnovica" value={`${stats.subtotal.toFixed(2)} €`} />
             <StatCard label="Naplaćeni PDV" value={`${stats.taxCollected.toFixed(2)} €`} />
+            <StatCard label="Napojnice" value={`${stats.tips.toFixed(2)} €`} />
             <StatCard label="Broj računa" value={`${stats.billCount}`} />
           </div>
 
