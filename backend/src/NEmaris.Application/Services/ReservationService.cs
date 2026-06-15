@@ -395,6 +395,14 @@ public class ReservationService : IReservationService
                 throw new InvalidOperationException(
                     $"Cannot transition reservation from {reservation.Status} to {newStatus}.");
 
+            if (newStatus == ReservationStatus.Completed &&
+                await _orderService.HasOpenOrderForReservationAsync(reservation.Id))
+            {
+                throw new InvalidOperationException(
+                    "Nije moguće završiti rezervaciju dok je račun za stol još otvoren. " +
+                    "Najprije naplatite račun.");
+            }
+
             var previousStatus = reservation.Status;
             reservation.Status = newStatus;
             reservation.UpdatedAt = DateTime.UtcNow;

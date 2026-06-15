@@ -37,6 +37,9 @@ public class OrderRepository : IOrderRepository
             .Include(o => o.Items).ThenInclude(i => i.MenuItem)
             .FirstOrDefaultAsync(o => o.TableId == tableId && o.Status == OrderStatus.Open);
 
+    public Task<bool> HasOpenOrderForReservationAsync(long reservationId)
+        => _db.Orders.AnyAsync(o => o.ReservationId == reservationId && o.Status == OrderStatus.Open);
+
     public async Task<RestaurantTables?> GetTableByIdAsync(long tableId)
         => await _db.Tables.FindAsync(tableId);
 

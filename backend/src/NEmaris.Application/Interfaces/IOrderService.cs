@@ -7,6 +7,7 @@ public interface IOrderService
     Task<OrderDto> CreateOrderAsync(CreateOrderDto dto, string waiterUserId);
     Task<OrderDto?> GetOrderAsync(long id);
     Task<OrderDto?> GetOpenOrderByTableIdAsync(long tableId);
+    Task<bool> HasOpenOrderForReservationAsync(long reservationId);
     Task<IReadOnlyList<OrderDto>> GetOrdersAsync(string? status = null, bool todayOnly = true);
     Task<DailyStatsDto> GetTodayStatsAsync();
     Task<OrderItemDto> AddOrderItemAsync(long orderId, AddOrderItemDto dto);

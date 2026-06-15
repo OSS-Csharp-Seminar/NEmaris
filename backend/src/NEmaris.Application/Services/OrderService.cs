@@ -15,11 +15,16 @@ public class TaxOptions
 public class OrderService : IOrderService
 {
     private readonly IOrderRepository _repo;
+    private readonly IReservationRepository _reservationRepo;
     private readonly decimal _taxRate;
 
-    public OrderService(IOrderRepository repo, IOptions<TaxOptions> taxOptions)
+    public OrderService(
+        IOrderRepository repo,
+        IReservationRepository reservationRepo,
+        IOptions<TaxOptions> taxOptions)
     {
         _repo = repo;
+        _reservationRepo = reservationRepo;
         _taxRate = Math.Clamp(taxOptions.Value.Rate, 0m, 1m);
     }
 
@@ -69,6 +74,9 @@ public class OrderService : IOrderService
         ApplyTax(order);
         return MapToOrderDto(order);
     }
+
+    public Task<bool> HasOpenOrderForReservationAsync(long reservationId)
+        => _repo.HasOpenOrderForReservationAsync(reservationId);
 
     public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync(string? status = null, bool todayOnly = true)
     {
@@ -191,9 +199,27 @@ public class OrderService : IOrderService
         await _repo.UpdateOrderAsync(order);
         await _repo.UpdateTableStatusAsync(order.TableId, TableStatus.Available);
 
+        if (order.ReservationId.HasValue)
+            await CompleteReservationIfOpenAsync(order.ReservationId.Value);
+
         var bill = await _repo.GetBillAsync(orderId);
         ApplyTax(bill!);
         return MapToBillDto(bill!);
+    }
+
+    private async Task CompleteReservationIfOpenAsync(long reservationId)
+    {
+        var reservation = await _reservationRepo.GetReservationByIdAsync(reservationId);
+        if (reservation is null) return;
+
+        if (reservation.Status is ReservationStatus.Seated
+            or ReservationStatus.Active
+            or ReservationStatus.Late)
+        {
+            reservation.Status = ReservationStatus.Completed;
+            reservation.UpdatedAt = DateTime.UtcNow;
+            await _reservationRepo.UpdateReservationAsync(reservation);
+        }
     }
 
     public async Task<OrderDto> CancelOrderAsync(long id)
