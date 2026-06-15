@@ -40,6 +40,13 @@ public class OrderRepository : IOrderRepository
     public Task<bool> HasOpenOrderForReservationAsync(long reservationId)
         => _db.Orders.AnyAsync(o => o.ReservationId == reservationId && o.Status == OrderStatus.Open);
 
+    public Task<Order?> GetOpenWalkInForTableAsync(long tableId)
+        => _db.Orders
+            .FirstOrDefaultAsync(o =>
+                o.TableId == tableId &&
+                o.Status == OrderStatus.Open &&
+                o.ReservationId == null);
+
     public async Task<RestaurantTables?> GetTableByIdAsync(long tableId)
         => await _db.Tables.FindAsync(tableId);
 

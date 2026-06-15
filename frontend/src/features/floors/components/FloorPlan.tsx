@@ -131,17 +131,34 @@ function getChairPositions(table: RestaurantTable, size: TableSize) {
   return [...topChairs, ...bottomChairs];
 }
 
+function formatUpcomingBadge(iso: string): string {
+  const time = new Date(iso).toLocaleTimeString("hr-HR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `Rez. ${time}`;
+}
+
 function DiningSet({ table }: { table: RestaurantTable }) {
   const size = getTableSize(table);
   const chairs = getChairPositions(table, size);
   const frameWidth = size.width + 40;
   const frameHeight = size.height + 40;
+  const showUpcomingBadge =
+    table.status === "available" && !!table.upcomingReservationAt;
 
   return (
     <span
       className="relative flex items-center justify-center"
       style={{ width: frameWidth, height: frameHeight }}
     >
+      {showUpcomingBadge && (
+        <span className="absolute inset-x-0 top-0 z-20 text-center text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+          <span className="inline-block rounded-full border border-amber-400 bg-amber-50 px-1.5 py-0.5">
+            {formatUpcomingBadge(table.upcomingReservationAt!)}
+          </span>
+        </span>
+      )}
       <span
         className="relative"
         style={{ width: size.width, height: size.height }}

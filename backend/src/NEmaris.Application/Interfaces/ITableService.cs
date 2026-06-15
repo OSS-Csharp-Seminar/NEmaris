@@ -10,5 +10,6 @@ public interface ITableService
     Task UpdateTableAsync(long id, UpdateTableDto dto);
     Task<TableDto> ChangeGuestCountAsync(long id, int change);
     Task<TableDto> MarkOccupiedAsync(long id, string waiterUserId);
+    Task<TableDto> SeatWalkInAsync(long id, int guestCount, string waiterUserId);
     Task DeleteTableAsync(long id);
 }

@@ -14,6 +14,8 @@ public interface IReservationRepository
     Task<IReadOnlyList<Reservations>> GetReservationsAsync(DateOnly? fromDate, DateOnly? toDate);
     Task<IReadOnlyList<RestaurantTables>> GetAvailableTablesAsync(DateTime startTime, DateTime endTime, int partySize);
     Task<HashSet<long>> GetTableIdsWithLiveReservationAsync(DateTime nowUtc);
+    Task<IReadOnlyDictionary<long, DateTime>> GetUpcomingReservationsByTableAsync(DateTime nowUtc, TimeSpan window);
+    Task<DateTime?> GetNextActiveReservationStartAsync(long tableId, DateTime nowUtc, TimeSpan window);
     Task<Reservations?> GetReservationByIdAsync(long id);
     Task<IReadOnlyList<Reservations>> GetReservationsByPhoneAsync(string phone);
     Task<IReadOnlyList<Reservations>> GetUpcomingReservationsByPhoneAndLastNameAsync(string phone, string lastName, DateTime asOfUtc);

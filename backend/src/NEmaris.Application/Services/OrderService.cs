@@ -78,6 +78,12 @@ public class OrderService : IOrderService
     public Task<bool> HasOpenOrderForReservationAsync(long reservationId)
         => _repo.HasOpenOrderForReservationAsync(reservationId);
 
+    public async Task<DateTime?> GetOpenWalkInStartTimeForTableAsync(long tableId)
+    {
+        var order = await _repo.GetOpenWalkInForTableAsync(tableId);
+        return order?.OpenedAt;
+    }
+
     public async Task<IReadOnlyList<OrderDto>> GetOrdersAsync(string? status = null, bool todayOnly = true)
     {
         OrderStatus? parsed = null;

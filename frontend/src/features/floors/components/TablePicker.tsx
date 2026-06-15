@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import FloorPlan from "./FloorPlan";
+import WalkInModal from "./WalkInModal";
 import type {
   RestaurantFloor,
   RestaurantTable,
@@ -7,6 +8,19 @@ import type {
 } from "../types/floor";
 import tableService from "../services/tableService";
 import OrderPanel from "../../../components/orders/OrderPanel";
+
+function extractErrorMessage(e: unknown): string | undefined {
+  if (typeof e !== "object" || !e) return undefined;
+  const response = (e as { response?: { data?: { message?: string } } }).response;
+  return response?.data?.message;
+}
+
+function formatUpcomingTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("hr-HR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 interface TablePickerProps {
   floor: RestaurantFloor;
@@ -21,6 +35,7 @@ export default function TablePicker({
 }: TablePickerProps) {
   const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null);
   const [orderPanelTable, setOrderPanelTable] = useState<RestaurantTable | null>(null);
+  const [walkInTable, setWalkInTable] = useState<RestaurantTable | null>(null);
   const [isUpdatingTable, setIsUpdatingTable] = useState(false);
   const [tableError, setTableError] = useState<string | null>(null);
 
@@ -37,8 +52,8 @@ export default function TablePicker({
       const nextTable = await update();
       setSelectedTable(nextTable);
       onTableStatusChange?.();
-    } catch {
-      setTableError("Nije moguce azurirati stol.");
+    } catch (e: unknown) {
+      setTableError(extractErrorMessage(e) ?? "Nije moguće ažurirati stol.");
     } finally {
       setIsUpdatingTable(false);
     }
@@ -73,6 +88,7 @@ export default function TablePicker({
         <TableDetails
           table={selectedTable}
           onOpenOrder={() => setOrderPanelTable(selectedTable)}
+          onWalkIn={() => selectedTable && setWalkInTable(selectedTable)}
           onChangeGuestCount={(change) =>
             selectedTable &&
             updateSelectedTable(() =>
@@ -96,6 +112,18 @@ export default function TablePicker({
           onOrderChange={onTableStatusChange}
         />
       )}
+
+      {walkInTable && (
+        <WalkInModal
+          table={walkInTable}
+          onClose={() => setWalkInTable(null)}
+          onSeated={(next) => {
+            setWalkInTable(null);
+            setSelectedTable(next);
+            onTableStatusChange?.();
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -109,6 +137,7 @@ const statusLabel: Record<TableStatus, string> = {
 function TableDetails({
   table,
   onOpenOrder,
+  onWalkIn,
   onChangeGuestCount,
   onMarkOccupied,
   isUpdating,
@@ -116,6 +145,7 @@ function TableDetails({
 }: {
   table: RestaurantTable | null;
   onOpenOrder: () => void;
+  onWalkIn: () => void;
   onChangeGuestCount: (change: -1 | 1) => void;
   onMarkOccupied: () => void;
   isUpdating: boolean;
@@ -128,11 +158,13 @@ function TableDetails({
           Odaberi stol na planu kata.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Detalji odabranog stola prikazat ce se ovdje.
+          Detalji odabranog stola prikazat će se ovdje.
         </p>
       </aside>
     );
   }
+
+  const showGuestStepper = table.status !== "available";
 
   return (
     <aside className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -158,35 +190,56 @@ function TableDetails({
               {statusLabel[table.status]}
             </dd>
           </div>
+          {table.status === "available" && table.upcomingReservationAt && (
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Sljedeća rezervacija</dt>
+              <dd className="font-medium text-amber-700">
+                {formatUpcomingTime(table.upcomingReservationAt)}
+              </dd>
+            </div>
+          )}
         </dl>
       </div>
 
-      <div className="rounded-lg border border-border bg-secondary/40 p-3">
-        <p className="text-sm font-medium text-card-foreground">Broj osoba</p>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => onChangeGuestCount(-1)}
-            disabled={isUpdating || table.guestCount === 0}
-            aria-label="Oduzmi osobu"
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-xl font-semibold transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            -
-          </button>
-          <strong className="text-2xl text-card-foreground">
-            {table.guestCount}
-          </strong>
-          <button
-            type="button"
-            onClick={() => onChangeGuestCount(1)}
-            disabled={isUpdating || table.guestCount === table.capacity}
-            aria-label="Dodaj osobu"
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-xl font-semibold transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            +
-          </button>
+      {showGuestStepper && (
+        <div className="rounded-lg border border-border bg-secondary/40 p-3">
+          <p className="text-sm font-medium text-card-foreground">Broj osoba</p>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => onChangeGuestCount(-1)}
+              disabled={isUpdating || table.guestCount === 0}
+              aria-label="Oduzmi osobu"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-xl font-semibold transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              -
+            </button>
+            <strong className="text-2xl text-card-foreground">
+              {table.guestCount}
+            </strong>
+            <button
+              type="button"
+              onClick={() => onChangeGuestCount(1)}
+              disabled={isUpdating || table.guestCount === table.capacity}
+              aria-label="Dodaj osobu"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-xl font-semibold transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              +
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {table.status === "available" && (
+        <button
+          type="button"
+          onClick={onWalkIn}
+          disabled={isUpdating}
+          className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+        >
+          Walk-in
+        </button>
+      )}
 
       {table.status === "reserved" && (
         <button
@@ -195,7 +248,7 @@ function TableDetails({
           disabled={isUpdating}
           className="w-full rounded-lg bg-rose-500 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:opacity-50"
         >
-          Oznaci kao zauzet
+          Označi kao zauzet
         </button>
       )}
 

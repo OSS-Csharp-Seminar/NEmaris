@@ -10,6 +10,7 @@ export interface RestaurantTable {
   y: number;
   shape: "square" | "round" | "wide";
   rotation?: number;
+  upcomingReservationAt?: string | null;
 }
 
 export interface RestaurantFloor {
@@ -30,4 +31,5 @@ export interface ApiRestaurantTable {
   positionY?: number;
   shape?: number;
   rotation?: number;
+  upcomingReservationAt?: string | null;
 }

@@ -9,6 +9,7 @@ public interface IOrderRepository
     Task<Order?> GetBillAsync(long id);
     Task<Order?> GetOpenOrderByTableIdAsync(long tableId);
     Task<bool> HasOpenOrderForReservationAsync(long reservationId);
+    Task<Order?> GetOpenWalkInForTableAsync(long tableId);
     Task<RestaurantTables?> GetTableByIdAsync(long tableId);
     Task<IReadOnlyList<Order>> GetOrdersAsync(OrderStatus? status = null, DateTime? from = null, DateTime? to = null);
     Task<IReadOnlyList<Order>> GetOrdersForStatsAsync(DateTime from, DateTime to);

@@ -125,6 +125,28 @@ public class TablesController : ControllerBase
         }
     }
 
+    [HttpPost("{id:long}/walkin")]
+    public async Task<IActionResult> SeatWalkIn(long id, [FromBody] SeatWalkInDto request)
+    {
+        try
+        {
+            var waiterUserId =
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
+                throw new InvalidOperationException("Authenticated user ID not found.");
+
+            return Ok(ToResponse(await _tableService.SeatWalkInAsync(id, request.GuestCount, waiterUserId)));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
     private static object ToResponse(TableDto table)
     {
         return new
@@ -141,7 +163,8 @@ public class TablesController : ControllerBase
             Shape = (int)table.Shape,
             table.Rotation,
             table.CreatedAt,
-            table.UpdatedAt
+            table.UpdatedAt,
+            table.UpcomingReservationAt
         };
     }
 }

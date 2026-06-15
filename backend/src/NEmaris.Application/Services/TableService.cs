@@ -26,9 +26,11 @@ public class TableService : ITableService
 
     public async Task<IReadOnlyList<TableDto>> GetAllAsync()
     {
+        var now = DateTime.UtcNow;
         var tables = await _tableRepository.GetAllAsync();
-        var liveReserved = await _reservationRepository.GetTableIdsWithLiveReservationAsync(DateTime.UtcNow);
-        return tables.Select(t => MapToDto(t, liveReserved)).ToList();
+        var liveReserved = await _reservationRepository.GetTableIdsWithLiveReservationAsync(now);
+        var upcoming = await _reservationRepository.GetUpcomingReservationsByTableAsync(now, RestaurantPolicies.WalkInDuration);
+        return tables.Select(t => MapToDto(t, liveReserved, upcoming)).ToList();
     }
 
     public async Task<TableDto> GetByIdAsync(long id)
@@ -37,8 +39,10 @@ public class TableService : ITableService
         if (table is null)
             throw new KeyNotFoundException("Table not found.");
 
-        var liveReserved = await _reservationRepository.GetTableIdsWithLiveReservationAsync(DateTime.UtcNow);
-        return MapToDto(table, liveReserved);
+        var now = DateTime.UtcNow;
+        var liveReserved = await _reservationRepository.GetTableIdsWithLiveReservationAsync(now);
+        var upcoming = await _reservationRepository.GetUpcomingReservationsByTableAsync(now, RestaurantPolicies.WalkInDuration);
+        return MapToDto(table, liveReserved, upcoming);
     }
 
     public async Task<long> CreateTableAsync(CreateTableDto dto)
@@ -99,6 +103,10 @@ public class TableService : ITableService
         var table = await _tableRepository.GetByIdAsync(id);
         if (table is null)
             throw new KeyNotFoundException("Table not found.");
+
+        if (table.Status == TableStatus.Available && change > 0)
+            throw new InvalidOperationException(
+                "Slobodan stol ne može primati goste izravno. Koristite akciju 'Walk-in' za neprijavljene goste.");
 
         var nextGuestCount = table.GuestCount + change;
         if (nextGuestCount < 0)
@@ -166,6 +174,63 @@ public class TableService : ITableService
         return MapToDto(resultTable);
     }
 
+    public async Task<TableDto> SeatWalkInAsync(long id, int guestCount, string waiterUserId)
+    {
+        if (guestCount <= 0)
+            throw new InvalidOperationException("Broj gostiju mora biti najmanje 1.");
+
+        var (resultTable, needsOrderForTable) = await _unitOfWork.InSerializableTransactionAsync<(RestaurantTables, long?)>(async () =>
+        {
+            var table = await _tableRepository.GetByIdAsync(id);
+            if (table is null)
+                throw new KeyNotFoundException("Table not found.");
+
+            if (table.Status != TableStatus.Available)
+                throw new InvalidOperationException("Walk-in je moguć samo za slobodne stolove.");
+
+            if (guestCount > table.Capacity)
+                throw new InvalidOperationException(
+                    $"Broj gostiju ({guestCount}) premašuje kapacitet stola ({table.Capacity}).");
+
+            var nextStart = await _reservationRepository.GetNextActiveReservationStartAsync(
+                id, DateTime.UtcNow, RestaurantPolicies.WalkInDuration);
+            if (nextStart.HasValue)
+            {
+                var localTime = RestaurantPolicies.FormatLocalTime(nextStart.Value);
+                throw new InvalidOperationException(
+                    $"Stol ima rezervaciju u {localTime}. Pokušajte drugi stol ili pričekajte da rezervacija prođe.");
+            }
+
+            table.Status = TableStatus.Seated;
+            table.GuestCount = guestCount;
+            table.UpdatedAt = DateTime.UtcNow;
+
+            await _tableRepository.UpdateAsync(table);
+
+            return (table, (long?)id);
+        });
+
+        if (needsOrderForTable.HasValue)
+        {
+            try
+            {
+                var existing = await _orderService.GetOpenOrderByTableIdAsync(needsOrderForTable.Value);
+                if (existing is null)
+                {
+                    await _orderService.CreateOrderAsync(
+                        new CreateOrderDto { TableId = needsOrderForTable.Value },
+                        waiterUserId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[walk-in] order auto-open failed for table {needsOrderForTable.Value}: {ex.Message}");
+            }
+        }
+
+        return MapToDto(resultTable);
+    }
+
     public async Task DeleteTableAsync(long id)
     {
         var table = await _tableRepository.GetByIdAsync(id);
@@ -175,7 +240,10 @@ public class TableService : ITableService
         await _tableRepository.DeleteAsync(table);
     }
 
-    private static TableDto MapToDto(RestaurantTables table, IReadOnlySet<long>? liveReservedIds = null)
+    private static TableDto MapToDto(
+        RestaurantTables table,
+        IReadOnlySet<long>? liveReservedIds = null,
+        IReadOnlyDictionary<long, DateTime>? upcomingByTable = null)
     {
         var effectiveStatus = table.Status;
         if (effectiveStatus == TableStatus.Available &&
@@ -183,6 +251,14 @@ public class TableService : ITableService
             liveReservedIds.Contains(table.Id))
         {
             effectiveStatus = TableStatus.Reserved;
+        }
+
+        DateTime? upcomingAt = null;
+        if (table.Status == TableStatus.Available &&
+            upcomingByTable is not null &&
+            upcomingByTable.TryGetValue(table.Id, out var startTime))
+        {
+            upcomingAt = DateTime.SpecifyKind(startTime, DateTimeKind.Utc);
         }
 
         return new TableDto
@@ -199,7 +275,8 @@ public class TableService : ITableService
             Shape = table.Shape,
             Rotation = table.Rotation,
             CreatedAt = table.CreatedAt,
-            UpdatedAt = table.UpdatedAt
+            UpdatedAt = table.UpdatedAt,
+            UpcomingReservationAt = upcomingAt
         };
     }
 }

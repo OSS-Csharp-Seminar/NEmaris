@@ -96,6 +96,39 @@ public class ReservationRepository : IReservationRepository
         return ids.ToHashSet();
     }
 
+    public async Task<IReadOnlyDictionary<long, DateTime>> GetUpcomingReservationsByTableAsync(DateTime nowUtc, TimeSpan window)
+    {
+        var cutoff = nowUtc + window;
+        var rows = await _context.Reservations
+            .AsNoTracking()
+            .Where(r =>
+                (r.Status == ReservationStatus.Active || r.Status == ReservationStatus.Late) &&
+                r.StartTime >= nowUtc &&
+                r.StartTime <= cutoff)
+            .Select(r => new { r.TableId, r.StartTime })
+            .ToListAsync();
+
+        return rows
+            .GroupBy(r => r.TableId)
+            .ToDictionary(g => g.Key, g => g.Min(x => x.StartTime));
+    }
+
+    public async Task<DateTime?> GetNextActiveReservationStartAsync(long tableId, DateTime nowUtc, TimeSpan window)
+    {
+        var cutoff = nowUtc + window;
+        var start = await _context.Reservations
+            .AsNoTracking()
+            .Where(r =>
+                r.TableId == tableId &&
+                (r.Status == ReservationStatus.Active || r.Status == ReservationStatus.Late) &&
+                r.StartTime >= nowUtc &&
+                r.StartTime <= cutoff)
+            .OrderBy(r => r.StartTime)
+            .Select(r => (DateTime?)r.StartTime)
+            .FirstOrDefaultAsync();
+        return start;
+    }
+
     public async Task<IReadOnlyList<RestaurantTables>> GetAvailableTablesAsync(DateTime startTime, DateTime endTime, int partySize)
     {
         var reservedTableIds = await _context.Reservations

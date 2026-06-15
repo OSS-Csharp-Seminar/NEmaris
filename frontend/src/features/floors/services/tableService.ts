@@ -67,6 +67,7 @@ function withLayout(table: ApiRestaurantTable): Required<ApiRestaurantTable> {
     shape: table.shape ?? fallback?.shape ?? 0,
     rotation: table.rotation ?? fallback?.rotation ?? 0,
     zone: table.zone ?? null,
+    upcomingReservationAt: table.upcomingReservationAt ?? null,
   };
 }
 
@@ -83,6 +84,7 @@ function mapTable(table: ApiRestaurantTable): RestaurantTable {
     y: Number(tableWithLayout.positionY),
     shape: shapeByApiValue[tableWithLayout.shape] ?? "square",
     rotation: tableWithLayout.rotation,
+    upcomingReservationAt: table.upcomingReservationAt ?? null,
   };
 }
 
@@ -114,6 +116,14 @@ const tableService = {
 
   async markOccupied(tableId: string): Promise<RestaurantTable> {
     const response = await api.post<ApiRestaurantTable>(`/tables/${tableId}/occupy`);
+    return mapTable(response.data);
+  },
+
+  async seatWalkIn(tableId: string, guestCount: number): Promise<RestaurantTable> {
+    const response = await api.post<ApiRestaurantTable>(
+      `/tables/${tableId}/walkin`,
+      { guestCount },
+    );
     return mapTable(response.data);
   },
 };

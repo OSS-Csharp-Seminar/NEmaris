@@ -142,6 +142,8 @@ public class ReservationService : IReservationService
             if (isOverlapping)
                 throw new InvalidOperationException("Selected table is already reserved for that time slot.");
 
+            await EnsureNoWalkInClashAsync(dto.TableId, dto.StartTime, dto.EndTime);
+
             var guest = await _reservationRepository.GetGuestByPhoneAsync(normalizedPhone);
             if (guest is null)
             {
@@ -346,6 +348,8 @@ public class ReservationService : IReservationService
                     newTableId, newStartTime, newEndTime, excludeReservationId: id);
                 if (clash)
                     throw new InvalidOperationException("Selected table is already reserved for that time slot.");
+
+                await EnsureNoWalkInClashAsync(newTableId, newStartTime, newEndTime);
             }
 
             return await CompleteUpdateAsync(reservation, dto, newTableId, newTableForCapacityCheck, newStartTime, newEndTime, newPartySize);
@@ -459,6 +463,22 @@ public class ReservationService : IReservationService
         }
 
         return result;
+    }
+
+    private async Task EnsureNoWalkInClashAsync(long tableId, DateTime startTime, DateTime endTime)
+    {
+        var walkInOpenedAt = await _orderService.GetOpenWalkInStartTimeForTableAsync(tableId);
+        if (!walkInOpenedAt.HasValue) return;
+
+        var walkInStart = DateTime.SpecifyKind(walkInOpenedAt.Value, DateTimeKind.Utc);
+        var walkInEnd = walkInStart + RestaurantPolicies.WalkInDuration;
+
+        if (walkInStart < endTime && startTime < walkInEnd)
+        {
+            var freeAt = RestaurantPolicies.FormatLocalTime(walkInEnd);
+            throw new InvalidOperationException(
+                $"Stol je trenutno zauzet walk-in gostima. Slobodan najranije u {freeAt}.");
+        }
     }
 
     private static bool IsLegalTransition(ReservationStatus from, ReservationStatus to) => from switch

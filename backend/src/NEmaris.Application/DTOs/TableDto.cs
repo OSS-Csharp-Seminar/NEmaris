@@ -17,4 +17,5 @@ public class TableDto
     public int Rotation { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public DateTime? UpcomingReservationAt { get; set; }
 }
