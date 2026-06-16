@@ -33,6 +33,18 @@ public class MenuItemService : IMenuItemService
         }).ToList();
     }
 
+    public async Task<IReadOnlyList<PublicMenuItemDto>> GetPublicMenuAsync()
+    {
+        var items = await _repository.GetAvailableWithCategoryAsync();
+        return items.Select(m => new PublicMenuItemDto
+        {
+            Name = m.Name,
+            Description = m.Description,
+            Price = m.Price,
+            Category = m.Category.Name
+        }).ToList();
+    }
+
     public async Task<MenuItemDto> GetByIdAsync(long id)
     {
         var item = await _repository.GetByIdAsync(id)

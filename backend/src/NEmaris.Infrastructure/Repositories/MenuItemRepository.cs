@@ -22,6 +22,17 @@ public class MenuItemRepository : IMenuItemRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<MenuItem>> GetAvailableWithCategoryAsync()
+    {
+        return await _context.MenuItems
+            .AsNoTracking()
+            .Include(m => m.Category)
+            .Where(m => m.IsAvailable && m.StockQuantity > 0)
+            .OrderBy(m => m.Category.Name)
+            .ThenBy(m => m.Name)
+            .ToListAsync();
+    }
+
     public async Task<MenuItem?> GetByIdAsync(long id)
     {
         return await _context.MenuItems

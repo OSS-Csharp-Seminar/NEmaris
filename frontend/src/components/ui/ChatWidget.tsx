@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import chatService, { type ChatMessage } from "../../services/chatService";
 
+export type ChatVariant = "compact" | "large";
+
 interface ChatWidgetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  variant?: ChatVariant;
+  pendingMessage?: string | null;
+  onPendingMessageConsumed?: () => void;
 }
 
 const STORAGE_KEY = "nemaris.chat.messages";
@@ -31,7 +36,13 @@ function loadSessionId(): string {
   return fresh;
 }
 
-export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
+export default function ChatWidget({
+  open,
+  onOpenChange,
+  variant = "compact",
+  pendingMessage,
+  onPendingMessageConsumed,
+}: ChatWidgetProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const [sessionId, setSessionId] = useState<string>(loadSessionId);
   const [input, setInput] = useState("");
@@ -69,6 +80,15 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
   }, [open, onOpenChange]);
 
   useEffect(() => {
+    if (!open) return;
+    if (!pendingMessage) return;
+    const text = pendingMessage;
+    onPendingMessageConsumed?.();
+    void send(text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pendingMessage]);
+
+  useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) {
         setMessages(loadMessages());
@@ -80,8 +100,9 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const send = async () => {
-    const trimmed = input.trim();
+  const send = async (textOverride?: string) => {
+    const fromOverride = textOverride !== undefined;
+    const trimmed = (fromOverride ? textOverride : input).trim();
     if (!trimmed || loading) return;
 
     const nextMessages: ChatMessage[] = [
@@ -89,7 +110,7 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
       { role: "user", content: trimmed },
     ];
     setMessages(nextMessages);
-    setInput("");
+    if (!fromOverride) setInput("");
     setLoading(true);
     setError(null);
 
@@ -105,7 +126,7 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
           ? (e as { response?: { status?: number } }).response?.status
           : undefined;
       setMessages(messages);
-      setInput(trimmed);
+      if (!fromOverride) setInput(trimmed);
       if (status === 429) {
         setError("Too many requests. Try again in a minute.");
       } else {
@@ -138,8 +159,14 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     return null;
   }
 
-  return (
-    <div className="fixed bottom-6 right-6 z-50 flex h-[32rem] w-[22rem] max-w-[calc(100vw-3rem)] flex-col rounded-2xl border border-border bg-card text-card-foreground shadow-xl">
+  const isLarge = variant === "large";
+
+  const panelClassName = isLarge
+    ? "flex h-[min(80vh,720px)] w-full max-w-3xl flex-col rounded-2xl border border-border bg-card text-card-foreground shadow-xl"
+    : "fixed bottom-6 right-6 z-50 flex h-[32rem] w-[22rem] max-w-[calc(100vw-3rem)] flex-col rounded-2xl border border-border bg-card text-card-foreground shadow-xl";
+
+  const chatPanel = (
+    <div className={panelClassName} onClick={isLarge ? (e) => e.stopPropagation() : undefined}>
       <div className="flex items-center justify-between border-b border-border p-3">
         <span className="font-medium">Reservations</span>
         <div className="flex items-center gap-3">
@@ -175,8 +202,8 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
             key={i}
             className={
               m.role === "user"
-                ? "ml-auto max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-sm text-primary-foreground"
-                : "mr-auto max-w-[85%] whitespace-pre-line rounded-2xl bg-secondary px-3 py-2 text-sm text-secondary-foreground"
+                ? "ml-auto max-w-[65%] rounded-2xl bg-primary px-3 py-2 text-sm text-primary-foreground"
+                : "mr-auto max-w-[65%] whitespace-pre-line rounded-2xl bg-secondary px-3 py-2 text-sm text-secondary-foreground"
             }
           >
             {m.content}
@@ -207,7 +234,7 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
         />
         <button
           type="button"
-          onClick={send}
+          onClick={() => send()}
           disabled={loading || !input.trim()}
           className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground transition-opacity disabled:opacity-50"
         >
@@ -216,4 +243,17 @@ export default function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
       </div>
     </div>
   );
+
+  if (isLarge) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        onClick={() => onOpenChange(false)}
+      >
+        {chatPanel}
+      </div>
+    );
+  }
+
+  return chatPanel;
 }

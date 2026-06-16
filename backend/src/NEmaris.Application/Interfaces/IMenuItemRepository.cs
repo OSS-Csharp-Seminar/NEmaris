@@ -5,6 +5,7 @@ namespace NEmaris.Application.Interfaces;
 public interface IMenuItemRepository
 {
     Task<IReadOnlyList<MenuItem>> GetAllAsync();
+    Task<IReadOnlyList<MenuItem>> GetAvailableWithCategoryAsync();
     Task<MenuItem?> GetByIdAsync(long id);
     Task AddAsync(MenuItem item);
     Task UpdateAsync(MenuItem item);
