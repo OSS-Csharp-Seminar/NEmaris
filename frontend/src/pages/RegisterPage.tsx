@@ -54,26 +54,26 @@ export default function RegisterPage() {
   };
 
   const inputClass =
-    "w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 transition-colors";
+    "w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground outline-none placeholder:text-muted-foreground focus:border-primary transition-colors";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-start justify-center pt-12">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-lg">
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">
+    <div className="min-h-screen bg-background flex items-start justify-center pt-12">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-8 shadow-lg">
+        <h2 className="mb-2 text-2xl font-bold text-card-foreground">
           Register New User
         </h2>
-        <p className="mb-6 text-sm text-gray-500">
+        <p className="mb-6 text-sm text-muted-foreground">
           Only administrators can create new accounts.
         </p>
 
         {message && (
-          <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+          <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
             {message}
           </div>
         )}
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
           </div>
         )}

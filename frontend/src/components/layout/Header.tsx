@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import NemarisIcon from "../common/NemarisIcon";
 import { useAuth } from "../../context/useAuth";
+import { useTheme } from "../../context/useTheme";
 
 interface HeaderProps {
   onOpenChat: () => void;
@@ -8,6 +9,7 @@ interface HeaderProps {
 
 export default function Header({ onOpenChat }: HeaderProps) {
   const { isAuthenticated, isAdmin, user, logout } = useAuth();
+  const { theme, toggle } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -20,6 +22,16 @@ export default function Header({ onOpenChat }: HeaderProps) {
       <NemarisIcon />
 
       <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-border text-base transition-colors hover:bg-secondary"
+        >
+          {theme === "dark" ? "☀" : "☾"}
+        </button>
+
         {isAuthenticated ? (
           <>
             <span className="text-sm text-muted-foreground">

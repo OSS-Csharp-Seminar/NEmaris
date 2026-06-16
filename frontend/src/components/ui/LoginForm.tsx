@@ -40,21 +40,21 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="flex w-full max-w-md flex-1 flex-col items-center rounded-2xl bg-white p-8 pt-28 shadow-lg">
-      <h2 className="mb-2 text-2xl font-bold text-gray-800">Welcome</h2>
-      <p className="mb-6 text-sm text-gray-500">
+    <div className="flex w-full max-w-md flex-1 flex-col items-center rounded-2xl bg-card p-8 pt-28 shadow-lg">
+      <h2 className="mb-2 text-2xl font-bold text-card-foreground">Welcome</h2>
+      <p className="mb-6 text-sm text-muted-foreground">
         Sign in to continue to your account
       </p>
 
       {error && (
-        <div className="mb-4 w-full rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 w-full rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="w-full flex flex-col">
         <input
-          className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+          className="mb-4 w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
           placeholder="Email"
           type="email"
           value={email}
@@ -63,7 +63,7 @@ export default function LoginForm() {
         />
 
         <input
-          className="mb-6 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+          className="mb-6 w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
           placeholder="Password"
           type="password"
           value={password}

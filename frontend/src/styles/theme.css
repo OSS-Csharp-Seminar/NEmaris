@@ -45,3 +45,26 @@
   /* Optional extras */
   --radius: 12px;
 }
+
+.dark {
+  --background: 15 23 42; /* slate-900 */
+  --foreground: 241 245 249; /* slate-100 */
+
+  --card: 30 41 59; /* slate-800 */
+  --card-foreground: 241 245 249;
+
+  --popover: 30 41 59;
+  --popover-foreground: 241 245 249;
+
+  --secondary: 51 65 85; /* slate-700 */
+  --secondary-foreground: 241 245 249;
+
+  --muted: 51 65 85;
+  --muted-foreground: 148 163 184; /* slate-400 */
+
+  --accent: 51 65 85;
+  --accent-foreground: 241 245 249;
+
+  --border: 51 65 85;
+  --input: 51 65 85;
+}

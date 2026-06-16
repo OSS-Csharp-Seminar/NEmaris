@@ -202,8 +202,8 @@ export default function ChatWidget({
             key={i}
             className={
               m.role === "user"
-                ? "ml-auto max-w-[65%] rounded-2xl bg-primary px-3 py-2 text-sm text-primary-foreground"
-                : "mr-auto max-w-[65%] whitespace-pre-line rounded-2xl bg-secondary px-3 py-2 text-sm text-secondary-foreground"
+                ? "ml-auto w-fit max-w-[65%] rounded-2xl bg-primary px-3 py-2 text-sm text-primary-foreground"
+                : "mr-auto w-fit max-w-[65%] whitespace-pre-line rounded-2xl bg-secondary px-3 py-2 text-sm text-secondary-foreground"
             }
           >
             {m.content}
