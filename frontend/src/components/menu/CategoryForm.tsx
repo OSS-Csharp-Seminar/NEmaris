@@ -26,11 +26,11 @@ export default function CategoryForm({
   onCancelEdit,
 }: CategoryFormProps) {
   const inputClass =
-    "w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 transition-colors";
+    "w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary";
 
   return (
     <form onSubmit={onSubmit} className="mb-6 flex flex-col gap-4">
-      <h4 className="text-lg font-semibold text-gray-800">
+      <h4 className="text-lg font-semibold text-card-foreground">
         {editingCategoryId ? "Uredi kategoriju" : "Dodaj kategoriju"}
       </h4>
 
@@ -78,7 +78,7 @@ export default function CategoryForm({
         <button
           type="button"
           onClick={onCancelEdit}
-          className="rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-100"
+          className="rounded-lg border border-input px-4 py-3 font-medium text-foreground transition-colors hover:bg-accent"
         >
           Odustani od uredjivanja
         </button>

@@ -14,7 +14,7 @@ export default function MenuItemList({
 }: MenuItemListProps) {
   if (items.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         Nema stavki menija u ovoj kategoriji.
       </p>
     );

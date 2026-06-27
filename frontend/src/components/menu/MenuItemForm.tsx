@@ -36,14 +36,14 @@ export default function MenuItemForm({
   onCancelEdit,
 }: MenuItemFormProps) {
   const inputClass =
-    "w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 transition-colors";
+    "w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary";
 
   return (
     <form
       onSubmit={onSubmit}
-      className="mb-6 flex flex-col gap-4 rounded-xl border border-gray-200 p-4"
+      className="mb-6 flex flex-col gap-4 rounded-xl border border-border p-4"
     >
-      <h4 className="text-lg font-semibold text-gray-800">
+      <h4 className="text-lg font-semibold text-card-foreground">
         {editingItemId ? "Uredi stavku menija" : "Dodaj stavku menija"}
       </h4>
 
@@ -91,7 +91,7 @@ export default function MenuItemForm({
         required
       />
 
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-foreground">
         <input
           type="checkbox"
           checked={itemIsAvailable}
@@ -111,7 +111,7 @@ export default function MenuItemForm({
         <button
           type="button"
           onClick={onCancelEdit}
-          className="rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-100"
+          className="rounded-lg border border-input px-4 py-3 font-medium text-foreground transition-colors hover:bg-accent"
         >
           Odustani od uredjivanja
         </button>

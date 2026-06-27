@@ -352,31 +352,31 @@ export default function MenuManagementPage() {
   });
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50 p-6">
+    <div className="h-full overflow-y-auto bg-background p-6">
       <div className="mx-auto w-full max-w-7xl">
-        <h2 className="mb-2 text-2xl font-bold text-gray-800">
+        <h2 className="mb-2 text-2xl font-bold text-foreground">
           Upravljanje menijem
         </h2>
 
-        <p className="mb-6 text-sm text-gray-500">
+        <p className="mb-6 text-sm text-muted-foreground">
           Dodaj i uredi kategorije i stavke restoranskog menija.
         </p>
 
         {message && (
-          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div className="mb-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
             {message}
           </div>
         )}
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <section className="rounded-2xl bg-white p-6 shadow-lg lg:col-span-1">
-            <h3 className="mb-4 text-xl font-semibold text-gray-800">
+          <section className="rounded-2xl bg-card p-6 shadow-lg lg:col-span-1">
+            <h3 className="mb-4 text-xl font-semibold text-card-foreground">
               Kategorije
             </h3>
 
@@ -403,15 +403,15 @@ export default function MenuManagementPage() {
             />
           </section>
 
-          <section className="rounded-2xl bg-white p-6 shadow-lg lg:col-span-2">
+          <section className="rounded-2xl bg-card p-6 shadow-lg lg:col-span-2">
             <div className="mb-4">
-              <h3 className="text-xl font-semibold text-gray-800">
+              <h3 className="text-xl font-semibold text-card-foreground">
                 {selectedCategory
                   ? `Stavke kategorije ${selectedCategory.name}`
                   : "Stavke menija"}
               </h3>
 
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 {selectedCategory
                   ? "Stavke dodijeljene odabranoj kategoriji."
                   : "Odaberi kategoriju za pregled stavki."}
@@ -440,7 +440,7 @@ export default function MenuManagementPage() {
 
             {selectedCategory && (
               <input
-                className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none transition-colors focus:border-blue-500"
+                className="mb-4 w-full rounded-lg border border-input bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
                 placeholder="Pretrazi po nazivu ili sifri proizvoda"
                 value={menuItemSearch}
                 onChange={(e) => setMenuItemSearch(e.target.value)}
@@ -448,7 +448,7 @@ export default function MenuManagementPage() {
             )}
 
             {!selectedCategory && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Odaberi kategoriju s lijeve strane.
               </p>
             )}

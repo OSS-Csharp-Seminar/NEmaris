@@ -18,11 +18,11 @@ export default function CategoryList({
   onEdit,
 }: CategoryListProps) {
   if (isLoading) {
-    return <p className="text-sm text-gray-500">Ucitavanje kategorija...</p>;
+    return <p className="text-sm text-muted-foreground">Ucitavanje kategorija...</p>;
   }
 
   if (categories.length === 0) {
-    return <p className="text-sm text-gray-500">Nema pronadjenih kategorija.</p>;
+    return <p className="text-sm text-muted-foreground">Nema pronadjenih kategorija.</p>;
   }
 
   return (
@@ -32,8 +32,8 @@ export default function CategoryList({
           key={category.id}
           className={`rounded-lg border px-4 py-3 transition-colors ${
             selectedCategoryId === category.id
-              ? "border-blue-500 bg-blue-50"
-              : "border-gray-200 hover:bg-gray-50"
+              ? "border-primary bg-accent"
+              : "border-border hover:bg-accent"
           }`}
         >
           <div className="flex items-center justify-between gap-4">
@@ -43,16 +43,16 @@ export default function CategoryList({
               className="flex-1 text-left"
             >
               <div>
-                <h4 className="font-medium text-gray-800">{category.name}</h4>
+                <h4 className="font-medium text-card-foreground">{category.name}</h4>
 
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   {category.description || "Nema opisa"}
                 </p>
               </div>
             </button>
 
             <div className="flex flex-col items-end gap-3">
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
+              <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
                 Redoslijed: {category.displayOrder}
               </span>
 
@@ -60,7 +60,7 @@ export default function CategoryList({
                 <button
                   type="button"
                   onClick={() => onEdit(category)}
-                  className="rounded-lg bg-blue-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
+                  className="rounded-lg bg-primary px-3 py-1 text-sm text-primary-foreground transition-opacity hover:opacity-90"
                 >
                   Uredi
                 </button>
@@ -68,7 +68,7 @@ export default function CategoryList({
                 <button
                   type="button"
                   onClick={() => onDelete(category.id)}
-                  className="rounded-lg bg-red-500 px-3 py-1 text-sm text-white transition-opacity hover:opacity-90"
+                  className="rounded-lg bg-destructive px-3 py-1 text-sm text-destructive-foreground transition-opacity hover:opacity-90"
                 >
                   Obrisi
                 </button>
