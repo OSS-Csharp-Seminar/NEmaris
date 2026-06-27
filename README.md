@@ -4,8 +4,6 @@
 
 This project is a restaurant management system that integrates traditional restaurant operations with an AI-powered chatbot. The system allows staff to manage reservations, tables, orders, and billing, while guests can interact with an AI assistant to check availability or request reservations using natural language.
 
-The backend provides the core business logic and database management. The AI layer communicates with the backend through an MCP server, allowing the language model to safely access predefined tools without direct database access.
-
 The project is designed as a modular system composed of several services that communicate through APIs.
 
 For local development setup see [DOCKER.md](./DOCKER.md).
@@ -27,10 +25,9 @@ Authentication and Users
 
 Table Management
 
-* Table creation and management
-* Table capacity configuration
-* Table status tracking
-* Table state overview
+* Capacity tracked per table
+* Live table status tracking (available / reserved / seated)
+* Multi-floor table state overview with walk-in seating and occupancy controls
 
 Reservations
 
@@ -57,10 +54,9 @@ Orders and Billing
 
 Payments
 
-* Record payments
-* Support multiple payment methods
-* Track payment status
-* Store payment reference numbers
+* Cash payment processing from the cash register UI
+* Track payment status per order
+* Store payment reference numbers (auto-generated, unique)
 
 ---
 
