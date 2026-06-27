@@ -11,6 +11,15 @@ public interface IConversationStateStore
 public class ConversationState
 {
     public string? LastResolvedStartTimeUtc { get; set; }
+    public LastReservationContext? LastReservation { get; set; }
+}
+
+public class LastReservationContext
+{
+    public long Id { get; set; }
+    public string StartTimeUtc { get; set; } = string.Empty;
+    public string EndTimeUtc { get; set; } = string.Empty;
+    public string TableNumber { get; set; } = string.Empty;
 }
 
 public class ConversationStateStore : IConversationStateStore

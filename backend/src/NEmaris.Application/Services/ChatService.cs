@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -190,10 +191,19 @@ public class ChatService : IChatService
             Parameters = t.ParameterSchema
         }).ToList();
 
+        var sessionId = string.IsNullOrWhiteSpace(request.SessionId) ? null : request.SessionId.Trim();
+        var sessionState = sessionId is not null ? _stateStore.GetOrCreate(sessionId) : new ConversationState();
+        ClearStaleLastReservation(sessionState, DateTime.UtcNow);
+        var lastResolvedStartTimeUtc = sessionState.LastResolvedStartTimeUtc;
+
         var messages = new List<OllamaChatMessage>
         {
             new() { Role = "system", Content = BuildSystemPrompt(DateTime.UtcNow, _timeZoneContext.TimeZone) }
         };
+
+        var contextNote = BuildActiveReservationNote(sessionState.LastReservation, _timeZoneContext.TimeZone, DateTime.UtcNow);
+        if (contextNote is not null)
+            messages.Add(new OllamaChatMessage { Role = "system", Content = contextNote });
 
         foreach (var msg in request.Messages)
         {
@@ -203,10 +213,6 @@ public class ChatService : IChatService
                 Content = msg.Content
             });
         }
-
-        var sessionId = string.IsNullOrWhiteSpace(request.SessionId) ? null : request.SessionId.Trim();
-        var sessionState = sessionId is not null ? _stateStore.GetOrCreate(sessionId) : new ConversationState();
-        var lastResolvedStartTimeUtc = sessionState.LastResolvedStartTimeUtc;
         var toolNamesCalled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var phonesProvided = ExtractPhonesProvided(request.Messages);
         var wordsProvided = ExtractWordsProvided(request.Messages);
@@ -230,17 +236,33 @@ public class ChatService : IChatService
             {
                 toolNamesCalled.Add(call.Name);
                 var effectiveArguments = call.Arguments;
-                string? overrideNote = null;
+                var overrideNotes = new List<string>();
 
                 if (NeedsStartTime(call.Name) && lastResolvedStartTimeUtc is not null)
                 {
                     var llmPassed = TryGetStringProperty(call.Arguments, "startTime");
                     if (!string.Equals(llmPassed, lastResolvedStartTimeUtc, StringComparison.Ordinal))
                     {
-                        effectiveArguments = OverrideStartTime(call.Arguments, lastResolvedStartTimeUtc);
-                        overrideNote = $" [override: startTime {llmPassed ?? "<missing>"} → {lastResolvedStartTimeUtc}]";
+                        effectiveArguments = OverrideField(effectiveArguments, "startTime", lastResolvedStartTimeUtc);
+                        overrideNotes.Add($"startTime {llmPassed ?? "<missing>"} → {lastResolvedStartTimeUtc}");
                     }
                 }
+
+                if (call.Name == "get_available_tables" && sessionState.LastReservation is not null)
+                {
+                    if (TryGetTablesWindow(effectiveArguments, out var winStart, out var winEnd) &&
+                        OverlapsLastReservation(winStart, winEnd, sessionState.LastReservation))
+                    {
+                        var llmExcl = TryGetLongProperty(effectiveArguments, "excludeReservationId");
+                        if (llmExcl != sessionState.LastReservation.Id)
+                        {
+                            effectiveArguments = OverrideLongField(effectiveArguments, "excludeReservationId", sessionState.LastReservation.Id);
+                            overrideNotes.Add($"excludeReservationId {llmExcl?.ToString() ?? "<missing>"} → {sessionState.LastReservation.Id} (edit context)");
+                        }
+                    }
+                }
+
+                var overrideNote = overrideNotes.Count > 0 ? " [override: " + string.Join("; ", overrideNotes) + "]" : null;
 
                 if (DiagnosticsEnabled)
                     Console.WriteLine($"[chat-diag] tool={call.Name} args={effectiveArguments.GetRawText()}{overrideNote}");
@@ -268,6 +290,18 @@ public class ChatService : IChatService
                         reservationsChanged = true;
                 }
 
+                if (call.Name == "resolve_time")
+                {
+                    var rewritten = TryApplyLastReservationDateToResolveTime(
+                        result, effectiveArguments, sessionState.LastReservation, _timeZoneContext.TimeZone, DateTime.UtcNow);
+                    if (rewritten is not null)
+                    {
+                        result = rewritten;
+                        if (DiagnosticsEnabled)
+                            Console.WriteLine("[chat-diag] override: resolve_time past time re-resolved against LastReservation date");
+                    }
+                }
+
                 if (DiagnosticsEnabled)
                     Console.WriteLine($"[chat-diag] tool={call.Name} result={Truncate(result, 400)}");
 
@@ -280,6 +314,42 @@ public class ChatService : IChatService
                         sessionState.LastResolvedStartTimeUtc = newUtc;
                         if (sessionId is not null)
                             _stateStore.Save(sessionId, sessionState);
+                    }
+                }
+
+                if (!IsErrorResult(result))
+                {
+                    if (call.Name is "create_reservation" or "update_reservation")
+                    {
+                        var captured = TryParseReservationContext(result);
+                        if (captured is not null)
+                        {
+                            sessionState.LastReservation = captured;
+                            if (sessionId is not null)
+                                _stateStore.Save(sessionId, sessionState);
+                            if (DiagnosticsEnabled)
+                                Console.WriteLine($"[chat-diag] LastReservation captured from {call.Name}: id={captured.Id}, table={captured.TableNumber}, {captured.StartTimeUtc} → {captured.EndTimeUtc}");
+                        }
+                    }
+                    else if (call.Name == "find_my_reservations")
+                    {
+                        var captured = TryParseSingleReservationContext(result);
+                        if (captured is not null)
+                        {
+                            sessionState.LastReservation = captured;
+                            if (sessionId is not null)
+                                _stateStore.Save(sessionId, sessionState);
+                            if (DiagnosticsEnabled)
+                                Console.WriteLine($"[chat-diag] LastReservation captured from find: id={captured.Id}, table={captured.TableNumber}, {captured.StartTimeUtc} → {captured.EndTimeUtc}");
+                        }
+                    }
+                    else if (call.Name == "cancel_reservation")
+                    {
+                        sessionState.LastReservation = null;
+                        if (sessionId is not null)
+                            _stateStore.Save(sessionId, sessionState);
+                        if (DiagnosticsEnabled)
+                            Console.WriteLine("[chat-diag] LastReservation cleared after cancel_reservation");
                     }
                 }
 
@@ -352,12 +422,223 @@ public class ChatService : IChatService
         return prop.ValueKind == JsonValueKind.String ? prop.GetString() : null;
     }
 
-    private static JsonElement OverrideStartTime(JsonElement original, string startTimeUtc)
+    private static JsonElement OverrideField(JsonElement original, string field, string value)
     {
         var node = JsonNode.Parse(original.GetRawText()) as JsonObject ?? new JsonObject();
-        node["startTime"] = startTimeUtc;
+        node[field] = value;
         using var doc = JsonDocument.Parse(node.ToJsonString());
         return doc.RootElement.Clone();
+    }
+
+    private static JsonElement OverrideLongField(JsonElement original, string field, long value)
+    {
+        var node = JsonNode.Parse(original.GetRawText()) as JsonObject ?? new JsonObject();
+        node[field] = value;
+        using var doc = JsonDocument.Parse(node.ToJsonString());
+        return doc.RootElement.Clone();
+    }
+
+    private static long? TryGetLongProperty(JsonElement element, string name)
+    {
+        if (element.ValueKind != JsonValueKind.Object) return null;
+        if (!element.TryGetProperty(name, out var prop)) return null;
+        if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt64(out var v)) return v;
+        if (prop.ValueKind == JsonValueKind.String && long.TryParse(prop.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var s)) return s;
+        return null;
+    }
+
+    private static bool TryGetTablesWindow(JsonElement args, out DateTime startUtc, out DateTime endUtc)
+    {
+        startUtc = default;
+        endUtc = default;
+        var startStr = TryGetStringProperty(args, "startTime");
+        if (string.IsNullOrEmpty(startStr) ||
+            !DateTime.TryParse(startStr, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out startUtc))
+            return false;
+
+        var endStr = TryGetStringProperty(args, "endTime");
+        if (!string.IsNullOrEmpty(endStr) &&
+            DateTime.TryParse(endStr, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out endUtc))
+            return true;
+
+        var duration = 90;
+        if (args.TryGetProperty("durationMinutes", out var d) && d.ValueKind == JsonValueKind.Number && d.TryGetInt32(out var dInt))
+            duration = dInt;
+        endUtc = startUtc.AddMinutes(duration);
+        return true;
+    }
+
+    private static bool OverlapsLastReservation(DateTime startUtc, DateTime endUtc, LastReservationContext last)
+    {
+        if (!DateTime.TryParse(last.StartTimeUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var resStart))
+            return false;
+        if (!DateTime.TryParse(last.EndTimeUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var resEnd))
+            return false;
+        return resStart < endUtc && startUtc < resEnd;
+    }
+
+    private static void ClearStaleLastReservation(ConversationState state, DateTime nowUtc)
+    {
+        if (state.LastReservation is null) return;
+        if (!DateTime.TryParse(state.LastReservation.EndTimeUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var resEnd))
+        {
+            state.LastReservation = null;
+            return;
+        }
+        if (resEnd <= nowUtc)
+            state.LastReservation = null;
+    }
+
+    private static LastReservationContext? TryParseReservationContext(string toolResultJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(toolResultJson);
+            return ParseReservationObject(doc.RootElement);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static LastReservationContext? TryParseSingleReservationContext(string toolResultJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(toolResultJson);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return null;
+            if (!root.TryGetProperty("count", out var countProp) || countProp.ValueKind != JsonValueKind.Number) return null;
+            if (countProp.GetInt32() != 1) return null;
+            if (!root.TryGetProperty("reservations", out var arr) || arr.ValueKind != JsonValueKind.Array) return null;
+            var first = arr.EnumerateArray().FirstOrDefault();
+            if (first.ValueKind != JsonValueKind.Object) return null;
+            return ParseReservationObject(first);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static LastReservationContext? ParseReservationObject(JsonElement obj)
+    {
+        if (obj.ValueKind != JsonValueKind.Object) return null;
+        if (!obj.TryGetProperty("id", out var idProp) || idProp.ValueKind != JsonValueKind.Number) return null;
+        if (!idProp.TryGetInt64(out var id)) return null;
+        if (!obj.TryGetProperty("startTime", out var startProp)) return null;
+        if (!obj.TryGetProperty("endTime", out var endProp)) return null;
+        var startStr = NormalizeIsoTimestamp(startProp);
+        var endStr = NormalizeIsoTimestamp(endProp);
+        if (string.IsNullOrEmpty(startStr) || string.IsNullOrEmpty(endStr)) return null;
+        var tableNumber = obj.TryGetProperty("tableNumber", out var tnProp) && tnProp.ValueKind == JsonValueKind.String
+            ? tnProp.GetString() ?? ""
+            : "";
+        return new LastReservationContext
+        {
+            Id = id,
+            StartTimeUtc = startStr,
+            EndTimeUtc = endStr,
+            TableNumber = tableNumber
+        };
+    }
+
+    private static string NormalizeIsoTimestamp(JsonElement prop)
+    {
+        if (prop.ValueKind != JsonValueKind.String) return string.Empty;
+        var raw = prop.GetString();
+        if (string.IsNullOrEmpty(raw)) return string.Empty;
+        if (!DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt))
+            return string.Empty;
+        return dt.ToString("yyyy-MM-ddTHH:mm:ssZ");
+    }
+
+    private static string? TryApplyLastReservationDateToResolveTime(
+        string toolResultJson,
+        JsonElement callArguments,
+        LastReservationContext? lastReservation,
+        TimeZoneInfo timeZone,
+        DateTime nowUtc)
+    {
+        if (lastReservation is null) return null;
+
+        if (!callArguments.TryGetProperty("localClock", out var clockProp) || clockProp.ValueKind != JsonValueKind.Object)
+            return null;
+        if (!clockProp.TryGetProperty("hour", out var hourProp) || hourProp.ValueKind != JsonValueKind.Number || !hourProp.TryGetInt32(out var hour))
+            return null;
+        var minute = 0;
+        if (clockProp.TryGetProperty("minute", out var minProp) && minProp.ValueKind == JsonValueKind.Number && minProp.TryGetInt32(out var m))
+            minute = m;
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+
+        var resolvedUtcStr = ExtractStartTimeUtc(toolResultJson);
+        if (string.IsNullOrEmpty(resolvedUtcStr) ||
+            !DateTime.TryParse(resolvedUtcStr, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var resolvedUtc))
+            return null;
+
+        if (resolvedUtc >= nowUtc.AddMinutes(-1)) return null;
+
+        if (!DateTime.TryParse(lastReservation.StartTimeUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var resStartUtc))
+            return null;
+        if (resStartUtc <= nowUtc) return null;
+
+        var resLocal = TimeZoneInfo.ConvertTimeFromUtc(resStartUtc, timeZone);
+        var newLocal = new DateTime(resLocal.Year, resLocal.Month, resLocal.Day, hour, minute, 0, DateTimeKind.Unspecified);
+        DateTime correctedUtc;
+        try
+        {
+            correctedUtc = TimeZoneInfo.ConvertTimeToUtc(newLocal, timeZone);
+        }
+        catch
+        {
+            return null;
+        }
+        if (correctedUtc <= nowUtc) return null;
+
+        var node = JsonNode.Parse(toolResultJson) as JsonObject ?? new JsonObject();
+        var correctedLocal = TimeZoneInfo.ConvertTimeFromUtc(correctedUtc, timeZone);
+        node["startTimeUtc"] = correctedUtc.ToString("yyyy-MM-ddTHH:mm:ssZ");
+        node["startTimeLocal"] = correctedLocal.ToString("yyyy-MM-dd HH:mm");
+        node["minutesFromNow"] = (int)Math.Round((correctedUtc - nowUtc).TotalMinutes);
+        node["interpretation"] = $"applied existing reservation date ({resLocal:yyyy-MM-dd}) at {hour:00}:{minute:00} local";
+        return node.ToJsonString();
+    }
+
+    private static string? BuildActiveReservationNote(LastReservationContext? last, TimeZoneInfo timeZone, DateTime nowUtc)
+    {
+        if (last is null) return null;
+        if (!DateTime.TryParse(last.StartTimeUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var startUtc))
+            return null;
+        if (!DateTime.TryParse(last.EndTimeUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var endUtc))
+            return null;
+        if (endUtc <= nowUtc) return null;
+
+        var startLocal = TimeZoneInfo.ConvertTimeFromUtc(startUtc, timeZone);
+        var endLocal = TimeZoneInfo.ConvertTimeFromUtc(endUtc, timeZone);
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, timeZone);
+
+        var daysAhead = (int)Math.Round((startLocal.Date - nowLocal.Date).TotalDays);
+        string dayHint = daysAhead switch
+        {
+            0 => "today",
+            1 => "tomorrow",
+            >= 2 and <= 6 => startLocal.DayOfWeek.ToString().ToLowerInvariant(),
+            _ => startLocal.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        };
+
+        var dateLabel = startLocal.ToString("dddd d MMMM yyyy", CultureInfo.InvariantCulture);
+        var startLabel = startLocal.ToString("HH:mm");
+        var endLabel = endLocal.ToString("HH:mm");
+
+        return
+            "ACTIVE RESERVATION CONTEXT (server-tracked, do not echo numeric ids to the guest): " +
+            $"The guest currently has reservation #{last.Id} at table {last.TableNumber} on {dateLabel} " +
+            $"from {startLabel} to {endLabel} ({timeZone.Id}). " +
+            "If the guest gives a bare clock time on a follow-up message (\"change it to 9:30 pm\", \"make it earlier\", \"a bit later\") " +
+            $"WITHOUT specifying a day, you MUST use the SAME date as the existing reservation when calling resolve_time. " +
+            $"Use day=\"{dayHint}\" (which resolves to {startLocal:yyyy-MM-dd}). " +
+            "Do NOT default to today. Do NOT claim the time is in the past — the guest is referring to the existing reservation's date.";
     }
 
     private static string? ExtractStartTimeUtc(string toolResultJson)

@@ -46,6 +46,7 @@ public class FindReservationsByPhoneTool : IChatTool
             count = reservations.Count,
             reservations = reservations.Select(r => new
             {
+                id = r.Id,
                 tableNumber = r.TableNumber,
                 startTime = r.StartTime,
                 endTime = r.EndTime,

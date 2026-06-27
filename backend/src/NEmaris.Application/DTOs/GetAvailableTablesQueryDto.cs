@@ -9,4 +9,6 @@ public class GetAvailableTablesQueryDto
 
     [Range(1, 100)]
     public int PartySize { get; set; }
+
+    public long? ExcludeReservationId { get; set; }
 }

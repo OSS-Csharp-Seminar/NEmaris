@@ -85,6 +85,7 @@ public class CreateReservationTool : IChatTool
 
         var summary = new
         {
+            id = reservation.Id,
             tableNumber = reservation.TableNumber,
             startTime = reservation.StartTime,
             endTime = reservation.EndTime,

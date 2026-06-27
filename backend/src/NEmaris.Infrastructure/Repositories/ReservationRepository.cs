@@ -129,7 +129,7 @@ public class ReservationRepository : IReservationRepository
         return start;
     }
 
-    public async Task<IReadOnlyList<RestaurantTables>> GetAvailableTablesAsync(DateTime startTime, DateTime endTime, int partySize)
+    public async Task<IReadOnlyList<RestaurantTables>> GetAvailableTablesAsync(DateTime startTime, DateTime endTime, int partySize, long? excludeReservationId = null)
     {
         var reservedTableIds = await _context.Reservations
             .AsNoTracking()
@@ -138,7 +138,8 @@ public class ReservationRepository : IReservationRepository
                 r.Status != ReservationStatus.NoShow &&
                 r.Status != ReservationStatus.Completed &&
                 r.StartTime < endTime &&
-                startTime < r.EndTime)
+                startTime < r.EndTime &&
+                (!excludeReservationId.HasValue || r.Id != excludeReservationId.Value))
             .Select(r => r.TableId)
             .Distinct()
             .ToListAsync();

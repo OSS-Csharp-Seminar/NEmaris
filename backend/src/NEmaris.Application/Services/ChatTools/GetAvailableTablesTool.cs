@@ -45,7 +45,8 @@ public class GetAvailableTablesTool : IChatTool
         {
             StartTime = startTime,
             EndTime = endTime,
-            PartySize = ToolArgs.GetInt32(arguments, "partySize")
+            PartySize = ToolArgs.GetInt32(arguments, "partySize"),
+            ExcludeReservationId = ToolArgs.GetOptionalInt64(arguments, "excludeReservationId")
         };
 
         var tables = await _reservationService.GetAvailableTablesAsync(query);

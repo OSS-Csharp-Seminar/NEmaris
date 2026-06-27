@@ -79,6 +79,7 @@ public class UpdateReservationTool : IChatTool
 
         var summary = new
         {
+            id = updated.Id,
             tableNumber = updated.TableNumber,
             startTime = updated.StartTime,
             endTime = updated.EndTime,

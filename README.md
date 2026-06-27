@@ -31,7 +31,6 @@ Table Management
 * Table capacity configuration
 * Table status tracking
 * Table state overview
-* Table grouping support
 
 Reservations
 
@@ -67,22 +66,8 @@ Payments
 
 ## AI Features
 
-Table Occupancy Simulation
-
-* Simulation of table occupancy over time
-* Simulation of guest arrivals and departures
-* Simulation of order creation and bill closing
-* Generation of realistic restaurant activity scenarios
-
-Operational Simulation
-
-* Simulated table usage
-* Simulated order lifecycle
-* Simulated guest flow inside the restaurant
-
 AI Chat Interaction
 
 * Users can interact with the AI through chat
 * Natural language questions about tables, reservations, and availability
-* AI responses based on simulated or real system state
 

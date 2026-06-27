@@ -12,7 +12,7 @@ public interface IReservationRepository
     Task<bool> HasOverlappingReservationAsync(long tableId, DateTime startTime, DateTime endTime, long? excludeReservationId = null);
     Task AddReservationAsync(Reservations reservation);
     Task<IReadOnlyList<Reservations>> GetReservationsAsync(DateOnly? fromDate, DateOnly? toDate);
-    Task<IReadOnlyList<RestaurantTables>> GetAvailableTablesAsync(DateTime startTime, DateTime endTime, int partySize);
+    Task<IReadOnlyList<RestaurantTables>> GetAvailableTablesAsync(DateTime startTime, DateTime endTime, int partySize, long? excludeReservationId = null);
     Task<HashSet<long>> GetTableIdsWithLiveReservationAsync(DateTime nowUtc);
     Task<IReadOnlyDictionary<long, DateTime>> GetUpcomingReservationsByTableAsync(DateTime nowUtc, TimeSpan window);
     Task<DateTime?> GetNextActiveReservationStartAsync(long tableId, DateTime nowUtc, TimeSpan window);

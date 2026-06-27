@@ -60,6 +60,13 @@ internal static class ToolArgs
         return GetInt32(args, name);
     }
 
+    public static long? GetOptionalInt64(JsonElement args, string name)
+    {
+        if (!args.TryGetProperty(name, out var prop)) return null;
+        if (prop.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return null;
+        return GetInt64(args, name);
+    }
+
     public static DateTime GetDateTime(JsonElement args, string name)
     {
         var raw = GetOptionalString(args, name)
