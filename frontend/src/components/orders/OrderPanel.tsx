@@ -25,6 +25,7 @@ export default function OrderPanel({
   const [paying, setPaying] = useState(false);
   const [opening, setOpening] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [updatingItemId, setUpdatingItemId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadOrder = useCallback(async () => {
@@ -58,6 +59,7 @@ export default function OrderPanel({
 
   const handleAddItem = async (menuItemId: number, quantity: number) => {
     if (!order) return;
+    setError(null);
     await orderService.addItem(order.id, { menuItemId, quantity });
     const b = await orderService.getBill(order.id);
     setBill(b);
@@ -67,11 +69,33 @@ export default function OrderPanel({
 
   const handleRemoveItem = async (itemId: number) => {
     if (!order) return;
+    setError(null);
     await orderService.removeItem(order.id, itemId);
     const b = await orderService.getBill(order.id);
     setBill(b);
     const o = await orderService.getOrder(order.id);
     setOrder(o);
+  };
+
+  const handleUpdateItemQuantity = async (itemId: number, newQuantity: number) => {
+    if (!order) return;
+    if (newQuantity < 1) return;
+    setUpdatingItemId(itemId);
+    setError(null);
+    try {
+      await orderService.updateItem(order.id, itemId, newQuantity);
+      const b = await orderService.getBill(order.id);
+      setBill(b);
+      const o = await orderService.getOrder(order.id);
+      setOrder(o);
+    } catch (e) {
+      const msg =
+        (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        "Nije moguće promijeniti količinu.";
+      setError(msg);
+    } finally {
+      setUpdatingItemId(null);
+    }
   };
 
   const handlePayment = async (amount: number) => {
@@ -172,31 +196,64 @@ export default function OrderPanel({
                 {bill.items.length > 0 && (
                   <div className="rounded-lg border border-border bg-card">
                     <ul className="divide-y divide-border">
-                      {bill.items.map((item) => (
-                        <li
-                          key={item.id}
-                          className="flex items-center justify-between gap-3 px-4 py-2.5"
-                        >
-                          <span className="flex-1 text-sm text-card-foreground">
-                            {item.menuItemName}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            ×{item.quantity}
-                          </span>
-                          <span className="w-16 text-right text-sm font-medium text-card-foreground">
-                            {item.lineTotal.toFixed(2)} €
-                          </span>
-                          {order.status === "open" && (
-                            <button
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="ml-1 rounded p-1 text-xs text-rose-500 hover:bg-rose-50"
-                              aria-label="Ukloni stavku"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </li>
-                      ))}
+                      {bill.items.map((item) => {
+                        const isBusy = updatingItemId === item.id;
+                        const isOpen = order.status === "open";
+                        return (
+                          <li
+                            key={item.id}
+                            className="flex items-center justify-between gap-3 px-4 py-2.5"
+                          >
+                            <span className="flex-1 text-sm text-card-foreground">
+                              {item.menuItemName}
+                            </span>
+                            {isOpen ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() =>
+                                    handleUpdateItemQuantity(item.id, item.quantity - 1)
+                                  }
+                                  disabled={isBusy || item.quantity <= 1}
+                                  className="flex h-6 w-6 items-center justify-center rounded border border-border text-xs hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                                  aria-label="Smanji količinu"
+                                >
+                                  −
+                                </button>
+                                <span className="w-6 text-center text-xs font-medium text-card-foreground">
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    handleUpdateItemQuantity(item.id, item.quantity + 1)
+                                  }
+                                  disabled={isBusy}
+                                  className="flex h-6 w-6 items-center justify-center rounded border border-border text-xs hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                                  aria-label="Povećaj količinu"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                ×{item.quantity}
+                              </span>
+                            )}
+                            <span className="w-16 text-right text-sm font-medium text-card-foreground">
+                              {item.lineTotal.toFixed(2)} €
+                            </span>
+                            {isOpen && (
+                              <button
+                                onClick={() => handleRemoveItem(item.id)}
+                                disabled={isBusy}
+                                className="ml-1 rounded p-1 text-xs text-rose-500 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label="Ukloni stavku"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
@@ -209,7 +266,18 @@ export default function OrderPanel({
               </div>
             )}
 
-            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            {error && (
+              <div className="mt-3 flex items-start justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
+                <p className="text-sm text-destructive">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="text-xs text-destructive hover:opacity-70"
+                  aria-label="Zatvori grešku"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
         </aside>
       </div>
