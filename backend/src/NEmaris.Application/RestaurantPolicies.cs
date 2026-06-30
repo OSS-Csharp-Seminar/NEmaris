@@ -4,6 +4,8 @@ public static class RestaurantPolicies
 {
     public static readonly TimeSpan WalkInDuration = TimeSpan.FromMinutes(90);
 
+    public static readonly TimeSpan LiveStatusWindow = TimeSpan.FromHours(2);
+
     private static readonly TimeZoneInfo DisplayTimeZone = ResolveDisplayTimeZone();
 
     public static string FormatLocalTime(DateTime utc)
