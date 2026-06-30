@@ -16,47 +16,53 @@ public class OrderService : IOrderService
 {
     private readonly IOrderRepository _repo;
     private readonly IReservationRepository _reservationRepo;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly decimal _taxRate;
 
     public OrderService(
         IOrderRepository repo,
         IReservationRepository reservationRepo,
+        IUnitOfWork unitOfWork,
         IOptions<TaxOptions> taxOptions)
     {
         _repo = repo;
         _reservationRepo = reservationRepo;
+        _unitOfWork = unitOfWork;
         _taxRate = Math.Clamp(taxOptions.Value.Rate, 0m, 1m);
     }
 
     public async Task<OrderDto> CreateOrderAsync(CreateOrderDto dto, string waiterUserId)
     {
-        var existing = await _repo.GetOpenOrderByTableIdAsync(dto.TableId);
-        if (existing != null)
-            throw new InvalidOperationException($"Table already has an open order ({existing.OrderNumber}).");
-
-        var table = await _repo.GetTableByIdAsync(dto.TableId)
-            ?? throw new KeyNotFoundException($"Table {dto.TableId} not found.");
-
-        if (table.Status != TableStatus.Seated)
-            throw new InvalidOperationException("An order can only be opened for an occupied table.");
-
-        var order = new Order
+        return await _unitOfWork.InSerializableTransactionAsync(async () =>
         {
-            OrderNumber = GenerateOrderNumber(),
-            TableId = dto.TableId,
-            WaiterUserId = waiterUserId,
-            GuestId = dto.GuestId,
-            ReservationId = dto.ReservationId,
-            Status = OrderStatus.Open,
-            PaymentStatus = PaymentStatus.Unpaid,
-            TaxRate = _taxRate,
-            OpenedAt = DateTime.UtcNow,
-        };
+            var existing = await _repo.GetOpenOrderByTableIdAsync(dto.TableId);
+            if (existing != null)
+                throw new InvalidOperationException($"Table already has an open order ({existing.OrderNumber}).");
 
-        order = await _repo.AddOrderAsync(order);
-        await _repo.UpdateTableStatusAsync(dto.TableId, TableStatus.Seated);
+            var table = await _repo.GetTableByIdAsync(dto.TableId)
+                ?? throw new KeyNotFoundException($"Table {dto.TableId} not found.");
 
-        return MapToOrderDto(order);
+            if (table.Status != TableStatus.Seated)
+                throw new InvalidOperationException("An order can only be opened for an occupied table.");
+
+            var order = new Order
+            {
+                OrderNumber = GenerateOrderNumber(),
+                TableId = dto.TableId,
+                WaiterUserId = waiterUserId,
+                GuestId = dto.GuestId,
+                ReservationId = dto.ReservationId,
+                Status = OrderStatus.Open,
+                PaymentStatus = PaymentStatus.Unpaid,
+                TaxRate = _taxRate,
+                OpenedAt = DateTime.UtcNow,
+            };
+
+            order = await _repo.AddOrderAsync(order);
+            await _repo.UpdateTableStatusAsync(dto.TableId, TableStatus.Seated);
+
+            return MapToOrderDto(order);
+        });
     }
 
     public async Task<OrderDto?> GetOrderAsync(long id)
@@ -105,63 +111,72 @@ public class OrderService : IOrderService
 
     public async Task<OrderItemDto> AddOrderItemAsync(long orderId, AddOrderItemDto dto)
     {
-        var order = await _repo.GetByIdAsync(orderId)
-            ?? throw new KeyNotFoundException($"Order {orderId} not found.");
-
-        if (order.Status != OrderStatus.Open)
-            throw new InvalidOperationException("Cannot add items to a non-open order.");
-
-        var item = new OrderItem
+        return await _unitOfWork.InSerializableTransactionAsync(async () =>
         {
-            OrderId = orderId,
-            MenuItemId = dto.MenuItemId,
-            Quantity = dto.Quantity,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-        };
+            var order = await _repo.GetByIdAsync(orderId)
+                ?? throw new KeyNotFoundException($"Order {orderId} not found.");
 
-        item = await _repo.AddOrderItemAsync(item);
-        return MapToOrderItemDto(item);
+            if (order.Status != OrderStatus.Open)
+                throw new InvalidOperationException("Cannot add items to a non-open order.");
+
+            var item = new OrderItem
+            {
+                OrderId = orderId,
+                MenuItemId = dto.MenuItemId,
+                Quantity = dto.Quantity,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+
+            item = await _repo.AddOrderItemAsync(item);
+            return MapToOrderItemDto(item);
+        });
     }
 
     public async Task<OrderItemDto> UpdateOrderItemAsync(long orderId, long itemId, UpdateOrderItemDto dto)
     {
-        var order = await _repo.GetByIdAsync(orderId)
-            ?? throw new KeyNotFoundException($"Order {orderId} not found.");
+        return await _unitOfWork.InSerializableTransactionAsync(async () =>
+        {
+            var order = await _repo.GetByIdAsync(orderId)
+                ?? throw new KeyNotFoundException($"Order {orderId} not found.");
 
-        if (order.Status != OrderStatus.Open)
-            throw new InvalidOperationException("Cannot modify items on a non-open order.");
+            if (order.Status != OrderStatus.Open)
+                throw new InvalidOperationException("Cannot modify items on a non-open order.");
 
-        var item = await _repo.GetOrderItemByIdAsync(itemId)
-            ?? throw new KeyNotFoundException($"Order item {itemId} not found.");
+            var item = await _repo.GetOrderItemByIdAsync(itemId)
+                ?? throw new KeyNotFoundException($"Order item {itemId} not found.");
 
-        if (item.OrderId != orderId)
-            throw new InvalidOperationException("Item does not belong to this order.");
+            if (item.OrderId != orderId)
+                throw new InvalidOperationException("Item does not belong to this order.");
 
-        var previousQuantity = item.Quantity;
-        item.Quantity = dto.Quantity;
-        item.LineTotal = item.UnitPrice * dto.Quantity;
-        item.UpdatedAt = DateTime.UtcNow;
+            var previousQuantity = item.Quantity;
+            item.Quantity = dto.Quantity;
+            item.LineTotal = item.UnitPrice * dto.Quantity;
+            item.UpdatedAt = DateTime.UtcNow;
 
-        await _repo.UpdateOrderItemAsync(item, previousQuantity);
-        return MapToOrderItemDto(item);
+            await _repo.UpdateOrderItemAsync(item, previousQuantity);
+            return MapToOrderItemDto(item);
+        });
     }
 
     public async Task RemoveOrderItemAsync(long orderId, long itemId)
     {
-        var order = await _repo.GetByIdAsync(orderId)
-            ?? throw new KeyNotFoundException($"Order {orderId} not found.");
+        await _unitOfWork.InSerializableTransactionAsync(async () =>
+        {
+            var order = await _repo.GetByIdAsync(orderId)
+                ?? throw new KeyNotFoundException($"Order {orderId} not found.");
 
-        if (order.Status != OrderStatus.Open)
-            throw new InvalidOperationException("Cannot remove items from a non-open order.");
+            if (order.Status != OrderStatus.Open)
+                throw new InvalidOperationException("Cannot remove items from a non-open order.");
 
-        var item = await _repo.GetOrderItemByIdAsync(itemId)
-            ?? throw new KeyNotFoundException($"Order item {itemId} not found.");
+            var item = await _repo.GetOrderItemByIdAsync(itemId)
+                ?? throw new KeyNotFoundException($"Order item {itemId} not found.");
 
-        if (item.OrderId != orderId)
-            throw new InvalidOperationException("Item does not belong to this order.");
+            if (item.OrderId != orderId)
+                throw new InvalidOperationException("Item does not belong to this order.");
 
-        await _repo.RemoveOrderItemAsync(item);
+            await _repo.RemoveOrderItemAsync(item);
+        });
     }
 
     public async Task<BillDto> GetBillAsync(long orderId)
@@ -175,42 +190,45 @@ public class OrderService : IOrderService
 
     public async Task<BillDto> ProcessPaymentAsync(long orderId, CreatePaymentDto dto)
     {
-        var order = await _repo.GetBillAsync(orderId)
-            ?? throw new KeyNotFoundException($"Order {orderId} not found.");
-
-        if (order.Status != OrderStatus.Open)
-            throw new InvalidOperationException("Cannot process payment for a non-open order.");
-
-        ApplyTax(order);
-
-        if (dto.Amount < order.TotalAmount)
-            throw new InvalidOperationException(
-                $"Payment amount ({dto.Amount:F2}) is less than the order total ({order.TotalAmount:F2}).");
-
-        var payment = new Payment
+        return await _unitOfWork.InSerializableTransactionAsync(async () =>
         {
-            OrderId = orderId,
-            PaymentMethod = dto.PaymentMethod,
-            Amount = dto.Amount,
-            ReferenceNumber = GenerateReferenceNumber(),
-            PaidAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-        };
+            var order = await _repo.GetBillAsync(orderId)
+                ?? throw new KeyNotFoundException($"Order {orderId} not found.");
 
-        await _repo.AddPaymentAsync(payment);
+            if (order.Status != OrderStatus.Open)
+                throw new InvalidOperationException("Cannot process payment for a non-open order.");
 
-        order.Status = OrderStatus.Closed;
-        order.PaymentStatus = PaymentStatus.Paid;
-        order.ClosedAt = DateTime.UtcNow;
-        await _repo.UpdateOrderAsync(order);
-        await _repo.UpdateTableStatusAsync(order.TableId, TableStatus.Available);
+            ApplyTax(order);
 
-        if (order.ReservationId.HasValue)
-            await CompleteReservationIfOpenAsync(order.ReservationId.Value);
+            if (dto.Amount < order.TotalAmount)
+                throw new InvalidOperationException(
+                    $"Payment amount ({dto.Amount:F2}) is less than the order total ({order.TotalAmount:F2}).");
 
-        var bill = await _repo.GetBillAsync(orderId);
-        ApplyTax(bill!);
-        return MapToBillDto(bill!);
+            var payment = new Payment
+            {
+                OrderId = orderId,
+                PaymentMethod = dto.PaymentMethod,
+                Amount = dto.Amount,
+                ReferenceNumber = GenerateReferenceNumber(),
+                PaidAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            await _repo.AddPaymentAsync(payment);
+
+            order.Status = OrderStatus.Closed;
+            order.PaymentStatus = PaymentStatus.Paid;
+            order.ClosedAt = DateTime.UtcNow;
+            await _repo.UpdateOrderAsync(order);
+            await _repo.UpdateTableStatusAsync(order.TableId, TableStatus.Available);
+
+            if (order.ReservationId.HasValue)
+                await CompleteReservationIfOpenAsync(order.ReservationId.Value);
+
+            var bill = await _repo.GetBillAsync(orderId);
+            ApplyTax(bill!);
+            return MapToBillDto(bill!);
+        });
     }
 
     private async Task CompleteReservationIfOpenAsync(long reservationId)
@@ -230,18 +248,21 @@ public class OrderService : IOrderService
 
     public async Task<OrderDto> CancelOrderAsync(long id)
     {
-        var order = await _repo.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException($"Order {id} not found.");
+        return await _unitOfWork.InSerializableTransactionAsync(async () =>
+        {
+            var order = await _repo.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException($"Order {id} not found.");
 
-        if (order.Status != OrderStatus.Open)
-            throw new InvalidOperationException("Only open orders can be cancelled.");
+            if (order.Status != OrderStatus.Open)
+                throw new InvalidOperationException("Only open orders can be cancelled.");
 
-        order.Status = OrderStatus.Cancelled;
-        order.ClosedAt = DateTime.UtcNow;
-        await _repo.UpdateOrderAsync(order);
-        await _repo.UpdateTableStatusAsync(order.TableId, TableStatus.Available);
+            order.Status = OrderStatus.Cancelled;
+            order.ClosedAt = DateTime.UtcNow;
+            await _repo.UpdateOrderAsync(order);
+            await _repo.UpdateTableStatusAsync(order.TableId, TableStatus.Available);
 
-        return MapToOrderDto(order);
+            return MapToOrderDto(order);
+        });
     }
 
     public async Task<DailyStatsDto> GetTodayStatsAsync()
