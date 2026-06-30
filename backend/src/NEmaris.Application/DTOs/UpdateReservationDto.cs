@@ -17,5 +17,6 @@ public class UpdateReservationDto
     [MaxLength(20)]
     public string? TableNumber { get; set; }
 
+    [MaxLength(2000)]
     public string? SpecialRequest { get; set; }
 }
