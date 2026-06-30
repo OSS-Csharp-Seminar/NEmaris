@@ -17,7 +17,8 @@ public interface IOrderRepository
     Task UpdateOrderAsync(Order order);
     Task<OrderItem> AddOrderItemAsync(OrderItem item);
     Task<OrderItem?> GetOrderItemByIdAsync(long itemId);
-    Task UpdateOrderItemAsync(OrderItem item, int previousQuantity);
+    Task<OrderItem?> FindOrderItemByMenuItemAsync(long orderId, long menuItemId);
+    Task UpdateOrderItemAsync(OrderItem item);
     Task RemoveOrderItemAsync(OrderItem item);
     Task<Payment> AddPaymentAsync(Payment payment);
     Task UpdateTableStatusAsync(long tableId, TableStatus status);

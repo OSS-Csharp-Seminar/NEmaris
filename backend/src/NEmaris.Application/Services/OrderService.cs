@@ -16,17 +16,20 @@ public class OrderService : IOrderService
 {
     private readonly IOrderRepository _repo;
     private readonly IReservationRepository _reservationRepo;
+    private readonly IMenuItemRepository _menuItemRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly decimal _taxRate;
 
     public OrderService(
         IOrderRepository repo,
         IReservationRepository reservationRepo,
+        IMenuItemRepository menuItemRepo,
         IUnitOfWork unitOfWork,
         IOptions<TaxOptions> taxOptions)
     {
         _repo = repo;
         _reservationRepo = reservationRepo;
+        _menuItemRepo = menuItemRepo;
         _unitOfWork = unitOfWork;
         _taxRate = Math.Clamp(taxOptions.Value.Rate, 0m, 1m);
     }
@@ -119,16 +122,42 @@ public class OrderService : IOrderService
             if (order.Status != OrderStatus.Open)
                 throw new InvalidOperationException("Cannot add items to a non-open order.");
 
+            var menuItem = await _menuItemRepo.GetByIdAsync(dto.MenuItemId)
+                ?? throw new KeyNotFoundException($"Menu item {dto.MenuItemId} not found.");
+
+            if (!menuItem.IsAvailable)
+                throw new InvalidOperationException($"'{menuItem.Name}' is not available.");
+
+            if (menuItem.StockQuantity < dto.Quantity)
+                throw new InvalidOperationException($"Only {menuItem.StockQuantity} units of '{menuItem.Name}' are available.");
+
+            menuItem.StockQuantity -= dto.Quantity;
+            menuItem.UpdatedAt = DateTime.UtcNow;
+            await _menuItemRepo.UpdateAsync(menuItem);
+
+            var existing = await _repo.FindOrderItemByMenuItemAsync(orderId, dto.MenuItemId);
+            if (existing is not null)
+            {
+                existing.Quantity += dto.Quantity;
+                existing.LineTotal = existing.UnitPrice * existing.Quantity;
+                existing.UpdatedAt = DateTime.UtcNow;
+                await _repo.UpdateOrderItemAsync(existing);
+                existing.MenuItem = menuItem;
+                return MapToOrderItemDto(existing);
+            }
+
             var item = new OrderItem
             {
                 OrderId = orderId,
                 MenuItemId = dto.MenuItemId,
                 Quantity = dto.Quantity,
+                UnitPrice = menuItem.Price,
+                LineTotal = menuItem.Price * dto.Quantity,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
-
-            item = await _repo.AddOrderItemAsync(item);
+            await _repo.AddOrderItemAsync(item);
+            item.MenuItem = menuItem;
             return MapToOrderItemDto(item);
         });
     }
@@ -149,12 +178,24 @@ public class OrderService : IOrderService
             if (item.OrderId != orderId)
                 throw new InvalidOperationException("Item does not belong to this order.");
 
-            var previousQuantity = item.Quantity;
+            var quantityDelta = dto.Quantity - item.Quantity;
+            if (quantityDelta != 0)
+            {
+                var menuItem = await _menuItemRepo.GetByIdAsync(item.MenuItemId)
+                    ?? throw new KeyNotFoundException($"Menu item {item.MenuItemId} not found.");
+
+                if (quantityDelta > 0 && menuItem.StockQuantity < quantityDelta)
+                    throw new InvalidOperationException($"Only {menuItem.StockQuantity} additional units of '{menuItem.Name}' are available.");
+
+                menuItem.StockQuantity -= quantityDelta;
+                menuItem.UpdatedAt = DateTime.UtcNow;
+                await _menuItemRepo.UpdateAsync(menuItem);
+            }
+
             item.Quantity = dto.Quantity;
             item.LineTotal = item.UnitPrice * dto.Quantity;
             item.UpdatedAt = DateTime.UtcNow;
-
-            await _repo.UpdateOrderItemAsync(item, previousQuantity);
+            await _repo.UpdateOrderItemAsync(item);
             return MapToOrderItemDto(item);
         });
     }
@@ -174,6 +215,14 @@ public class OrderService : IOrderService
 
             if (item.OrderId != orderId)
                 throw new InvalidOperationException("Item does not belong to this order.");
+
+            var menuItem = await _menuItemRepo.GetByIdAsync(item.MenuItemId);
+            if (menuItem is not null)
+            {
+                menuItem.StockQuantity += item.Quantity;
+                menuItem.UpdatedAt = DateTime.UtcNow;
+                await _menuItemRepo.UpdateAsync(menuItem);
+            }
 
             await _repo.RemoveOrderItemAsync(item);
         });
