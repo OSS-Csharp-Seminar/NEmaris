@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
 import menuCategoryService, {
   type MenuCategory,
 } from "../services/menuCategoryService";
@@ -130,7 +130,7 @@ export default function MenuManagementPage() {
     loadMenuItems();
   }, []);
 
-  const handleSubmitCategory = async (e: FormEvent) => {
+  const handleSubmitCategory = async (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setError(null);
@@ -204,7 +204,7 @@ export default function MenuManagementPage() {
     setDisplayOrder(1);
   };
 
-  const handleCreateMenuItem = async (e: FormEvent) => {
+  const handleCreateMenuItem = async (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!selectedCategoryId) return;

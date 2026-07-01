@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { SyntheticEvent } from "react";
 
 interface MenuItemFormProps {
   itemName: string;
@@ -13,7 +13,7 @@ interface MenuItemFormProps {
   onItemSkuChange: (value: string) => void;
   onItemIsAvailableChange: (value: boolean) => void;
   onItemStockQuantityChange: (value: number) => void;
-  onSubmit: (e: FormEvent) => void;
+  onSubmit: (e: SyntheticEvent<HTMLFormElement>) => void | Promise<void>;
   editingItemId: number | null;
   onCancelEdit: () => void;
 }
@@ -61,15 +61,16 @@ export default function MenuItemForm({
         value={itemDescription}
         onChange={(e) => onItemDescriptionChange(e.target.value)}
       />
-
       <input
         className={inputClass}
-        placeholder="Cijena"
+        placeholder="Unesi cijenu"
         type="number"
         step="0.01"
         min="0"
-        value={itemPrice}
-        onChange={(e) => onItemPriceChange(Number(e.target.value))}
+        value={!editingItemId && itemPrice === 0 ? "" : itemPrice}
+        onChange={(e) =>
+          onItemPriceChange(e.target.value === "" ? 0 : Number(e.target.value))
+        }
         required
       />
 
@@ -82,12 +83,16 @@ export default function MenuItemForm({
 
       <input
         className={inputClass}
-        placeholder="Kolicina u skladistu"
+        placeholder="Unesi kolicinu u skladistu"
         type="number"
         step="1"
         min="0"
-        value={itemStockQuantity}
-        onChange={(e) => onItemStockQuantityChange(Number(e.target.value))}
+        value={!editingItemId && itemStockQuantity === 0 ? "" : itemStockQuantity}
+        onChange={(e) =>
+          onItemStockQuantityChange(
+            e.target.value === "" ? 0 : Number(e.target.value)
+          )
+        }
         required
       />
 

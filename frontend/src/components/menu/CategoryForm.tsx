@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { SyntheticEvent } from "react";
 
 interface CategoryFormProps {
   name: string;
@@ -9,7 +9,7 @@ interface CategoryFormProps {
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onDisplayOrderChange: (value: number) => void;
-  onSubmit: (e: FormEvent) => void;
+  onSubmit: (e: SyntheticEvent<HTMLFormElement>) => void | Promise<void>;
   onCancelEdit: () => void;
 }
 
