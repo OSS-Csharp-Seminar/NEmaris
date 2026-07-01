@@ -1,14 +1,12 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using NEmaris.Application.Interfaces;
 using NEmaris.Domain.Entities;
-using NEmaris.Infrastructure.Persistence;
 
 namespace NEmaris.Infrastructure.Services;
 
@@ -16,13 +14,13 @@ public class TokenService : ITokenService
 {
     private readonly IConfiguration _config;
     private readonly IHostEnvironment _environment;
-    private readonly AppDbContext _db;
+    private readonly IRefreshTokenRepository _refreshTokenRepo;
 
-    public TokenService(IConfiguration config, IHostEnvironment environment, AppDbContext db)
+    public TokenService(IConfiguration config, IHostEnvironment environment, IRefreshTokenRepository refreshTokenRepo)
     {
         _config = config;
         _environment = environment;
-        _db = db;
+        _refreshTokenRepo = refreshTokenRepo;
     }
 
     public string GenerateAccessToken(ApplicationUser user)
@@ -63,34 +61,29 @@ public class TokenService : ITokenService
             ExpiresAt = DateTime.UtcNow.AddDays(refreshDays)
         };
 
-        _db.RefreshTokens.Add(refreshToken);
-        await _db.SaveChangesAsync();
-
+        await _refreshTokenRepo.AddAsync(refreshToken);
         return refreshToken;
     }
 
     public async Task<(string AccessToken, RefreshToken RefreshToken)> RefreshAsync(string token)
     {
-        var existing = await _db.RefreshTokens
-            .Include(r => r.User)
-            .FirstOrDefaultAsync(r => r.Token == token)
+        var existing = await _refreshTokenRepo.FindByTokenAsync(token)
             ?? throw new UnauthorizedAccessException("Invalid refresh token.");
 
         if (!existing.IsActive)
             throw new UnauthorizedAccessException("Refresh token has expired or been revoked.");
 
-        // Rotate: revoke old, issue new
+        // Rotate: revoke old, issue new — atomically via repo
         existing.RevokedAt = DateTime.UtcNow;
 
         var newRefresh = new RefreshToken
         {
             UserId = existing.UserId,
             Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
-            ExpiresAt = existing.ExpiresAt 
+            ExpiresAt = existing.ExpiresAt
         };
 
-        _db.RefreshTokens.Add(newRefresh);
-        await _db.SaveChangesAsync();
+        await _refreshTokenRepo.RotateAsync(existing, newRefresh);
 
         var accessToken = GenerateAccessToken(existing.User);
         return (accessToken, newRefresh);
@@ -98,12 +91,11 @@ public class TokenService : ITokenService
 
     public async Task RevokeAsync(string token)
     {
-        var existing = await _db.RefreshTokens
-            .FirstOrDefaultAsync(r => r.Token == token)
+        var existing = await _refreshTokenRepo.FindByTokenAsync(token)
             ?? throw new UnauthorizedAccessException("Invalid refresh token.");
 
         existing.RevokedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await _refreshTokenRepo.UpdateAsync(existing);
     }
 
     private string ResolveJwtKey()

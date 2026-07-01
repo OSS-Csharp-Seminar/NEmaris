@@ -214,7 +214,8 @@ public class ReservationService : IReservationService
         if (query.PartySize <= 0)
             throw new InvalidOperationException("Party size must be greater than zero.");
 
-        var tables = await _reservationRepository.GetAvailableTablesAsync(query.StartTime, query.EndTime, query.PartySize, query.ExcludeReservationId);
+        var applyLiveStatus = query.StartTime <= DateTime.UtcNow + RestaurantPolicies.LiveStatusWindow;
+        var tables = await _reservationRepository.GetAvailableTablesAsync(query.StartTime, query.EndTime, query.PartySize, applyLiveStatus, query.ExcludeReservationId);
         return tables
             .Select(t => new AvailableTableDto
             {

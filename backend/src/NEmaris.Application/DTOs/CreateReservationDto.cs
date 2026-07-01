@@ -20,6 +20,7 @@ public class CreateReservationDto
     [EmailAddress]
     public string? Email { get; set; }
 
+    [MaxLength(2000)]
     public string? Notes { get; set; }
 
     [Range(1, long.MaxValue)]
@@ -31,5 +32,6 @@ public class CreateReservationDto
     [Range(1, 100)]
     public int PartySize { get; set; }
 
+    [MaxLength(2000)]
     public string? SpecialRequest { get; set; }
 }
