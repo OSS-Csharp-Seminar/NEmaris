@@ -51,12 +51,14 @@ export default function CategoryForm({
 
       <input
         className={inputClass}
-        placeholder="Redoslijed prikaza"
+        placeholder="Redoslijed"
         type="number"
         min="1"
         step="1"
-        value={displayOrder}
-        onChange={(e) => onDisplayOrderChange(Number(e.target.value))}
+        value={!editingCategoryId && displayOrder === 1 ? "" : displayOrder}
+        onChange={(e) =>
+          onDisplayOrderChange(e.target.value === "" ? 1 : Number(e.target.value))
+        }
         required
       />
 

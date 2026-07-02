@@ -52,10 +52,6 @@ export default function CategoryList({
             </button>
 
             <div className="flex flex-col items-end gap-3">
-              <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-                Redoslijed: {category.displayOrder}
-              </span>
-
               <div className="flex gap-2">
                 <button
                   type="button"
